@@ -29,7 +29,7 @@ class FlowerVLAConfig(PreTrainedConfig):
     # Action and observation configuration
     action_dim: int = 8
     act_window_size: int = 16
-    chunk_size: int = 16  # Alias for act_window_size for LeRobot compatibility
+    chunk_size: int = 16
     multistep: int = 16
     num_sampling_steps: int = 4
     sampling_type: str = "uniform"
