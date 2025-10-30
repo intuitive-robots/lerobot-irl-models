@@ -113,9 +113,13 @@ def sample_ddim(
     DPM-Solver 1( or DDIM sampler"""
     extra_args = {} if extra_args is None else extra_args
     s_in = action.new_ones([action.shape[0]])
-    sigma_fn = lambda t: t.neg().exp()
-    t_fn = lambda sigma: sigma.log().neg()
-    old_denoised = None
+
+    def sigma_fn(t):
+        return t.neg().exp()
+
+    def t_fn(sigma):
+        return sigma.log().neg()
+
     # print("sigmas:", sigmas)
 
     for i in range(len(sigmas) - 1):

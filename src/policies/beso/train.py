@@ -3,9 +3,9 @@ import pathlib
 from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.policies import factory
-from policies.BESO.beso_config import BesoConfig
-from lerobot.scripts.train import init_logging
-from lerobot.scripts.train import train as lerobot_train
+from beso_config import BesoConfig
+from lerobot.scripts.lerobot_train import init_logging
+from lerobot.scripts.lerobot_train import train as lerobot_train
 
 
 def train(data_dir="data"):
@@ -43,7 +43,7 @@ def train(data_dir="data"):
 
 
 def get_beso(typename: str, **kwargs):
-    from policies.BESO.modelling_beso import BesoPolicy
+    from modelling_beso import BesoPolicy
 
     return BesoPolicy
 
