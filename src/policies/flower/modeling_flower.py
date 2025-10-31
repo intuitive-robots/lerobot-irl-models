@@ -8,7 +8,7 @@ from timm.layers.mlp import Mlp
 from lerobot.policies.pretrained import PreTrainedPolicy
 from .flower_config import FlowerVLAConfig
 from .action_index import ActionIndex
-from .transformes import (
+from .transformers import (
     TimestepEmbedder,
     SharedAdaLNController,
     RmsNorm,
@@ -1004,9 +1004,6 @@ class FlowerModel(nn.Module):
             return action_seq  # [B, T, action_dim]
         else:
             return action_seq[:, 0, :]  # [B, action_dim]
-
-    def get_optim_params(self) -> dict:
-        return self.parameters()
 
     def step(self, obs: Dict, goal: Dict) -> torch.Tensor:
         """
