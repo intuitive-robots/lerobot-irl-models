@@ -1,1 +1,1 @@
-# BESO package
+# BESO Model package
