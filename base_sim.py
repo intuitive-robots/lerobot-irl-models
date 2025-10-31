@@ -1,21 +1,18 @@
-import logging
 import abc
+import logging
 import os
-
-from agents.base_agent import BaseAgent
 
 log = logging.getLogger(__name__)
 
 
 class BaseSim(abc.ABC):
-
     def __init__(
-            self,
-            seed: int,
-            device: str,
-            render: bool = True,
-            n_cores: int = 1,
-            if_vision: bool = False
+        self,
+        seed: int,
+        device: str,
+        render: bool = True,
+        n_cores: int = 1,
+        if_vision: bool = False,
     ):
         self.seed = seed
         self.device = device
@@ -25,8 +22,8 @@ class BaseSim(abc.ABC):
         self.if_vision = if_vision
 
         self.working_dir = os.getcwd()
-        self.env_name = 'BaseEnvironment'
+        self.env_name = "BaseEnvironment"
 
     @abc.abstractmethod
-    def test_agent(self, agent: BaseAgent, cpu_set):
+    def test_agent(self, agent, cpu_set):
         pass

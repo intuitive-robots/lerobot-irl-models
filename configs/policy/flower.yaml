@@ -1,0 +1,35 @@
+# Flower VLA policy configuration for evaluation
+# @package _global_.policy
+
+_target_: src.policies.flower.modeling_flower.FlowerVLAPolicy
+
+# Model parameters
+model_name: "microsoft/Florence-2-base"
+action_space: "eef_delta"  # or "joint_single", "bimanual_nav"
+action_dim: 8  # 7 joints + 1 gripper
+chunk_size: 32
+n_obs_steps: 2
+
+# Camera configuration
+camera_names:
+  - "right_cam_image"
+  - "wrist_cam_image"
+
+# Image preprocessing
+image_size: [224, 126]
+
+# DiT architecture
+dit_depth: 8
+dit_hidden_dim: 768
+dit_n_heads: 12
+
+# Flow parameters
+num_inference_steps: 10
+
+# Training parameters (not used in eval, but required by config)
+learning_rate: 1.0e-4
+weight_decay: 0.01
+
+# Pooling
+use_spatial_softmax: true
+spatial_softmax_num_keypoints: 32
