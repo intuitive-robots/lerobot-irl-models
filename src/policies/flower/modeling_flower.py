@@ -837,8 +837,6 @@ class FlowerModel(nn.Module):
         Samples actions from the DiT model.
         Chooses between an adaptive ODE solver and fixed-step Euler integration.
         """
-        steps = self.num_sampling_steps if inference else 5
-        b = z.size(0)
         action_type = cond["action_type"]
         for action_name, action_idx in self.action_space_index.action_spaces.items():
             mask = action_type == action_idx
