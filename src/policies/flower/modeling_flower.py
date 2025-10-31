@@ -1,6 +1,5 @@
 import logging
 from typing import Dict, Tuple, List, Any
-import einops
 import torch
 import torch.nn as nn
 from transformers import AutoProcessor, AutoModelForCausalLM
@@ -104,6 +103,78 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         """
         result = self.forward(batch)
         return result["loss"], result["loss_dict"]
+
+    def get_optim_params(self) -> dict:
+        return self.parameters()
+
+    @torch.no_grad()
+    def predict_action_chunk(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Predict a chunk of actions given environment observations.
+
+        Args:
+            batch: Dictionary with observation data
+
+        Returns:
+            Action chunk [B, act_window_size, action_dim]
+        """
+        # Encode observations
+        cond = self.model.encode_observations(batch)
+
+        # Sample noise
+        B = cond["features"].shape[0]
+        noise = torch.randn(
+            B,
+            self.config.act_window_size,
+            self.config.action_dim,
+            device=self.model.device,
+        )
+
+        # Sample actions
+        action_seq = self.model.sample_actions(noise, cond, inference=True)
+
+        return action_seq  # [B, T, action_dim]
+
+    def reset(self) -> None:
+        """Reset rollout state."""
+        self.model.reset()
+
+    @torch.no_grad()
+    def select_action(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Select action for inference (LeRobot protocol).
+        This method handles action chunking internally:
+        - On first call (or every multistep): predicts new action chunk
+        - Returns single action per timestep from the chunk
+
+        Args:
+            batch: Observation batch
+
+        Returns:
+            Selected action [B, action_dim]
+        """
+        # Check if we need to predict a new action chunk
+        if (
+            self.model.rollout_step_counter % self.config.multistep == 0
+            or self.model.pred_action_seq is None
+        ):
+            # Predict new action chunk
+            self.model.pred_action_seq = self.predict_action_chunk(batch)
+
+        # Get current action from the chunk
+        if self.config.return_act_chunk:
+            # Return full chunk
+            action = self.model.pred_action_seq
+        else:
+            # Return single action at current step
+            action = self.model.pred_action_seq[:, self.model.rollout_step_counter, :]
+
+        # Update counter
+        self.model.rollout_step_counter += 1
+        if self.model.rollout_step_counter >= self.config.multistep:
+            self.model.rollout_step_counter = 0
+
+        return action
 
 
 class FlowerModel(nn.Module):
@@ -292,7 +363,9 @@ class FlowerModel(nn.Module):
         """
         logger.info(f"Loading VLM from {vlm_path}")
         self.vlm = AutoModelForCausalLM.from_pretrained(
-            vlm_path, trust_remote_code=True
+            vlm_path,
+            trust_remote_code=True,
+            attn_implementation="eager",  # Fix for Florence-2 SDPA issue
         )
         self.train_vlm = not freeze_florence
 
@@ -467,8 +540,9 @@ class FlowerModel(nn.Module):
             Dictionary with loss and other outputs
         """
         obs_features = self.encode_observations(batch)
+        dataset_idx = batch.get("task", {}).get("dataset_index", None)
         action_loss, losses_dict = self.rf_loss(
-            obs_features, batch[self.target_modality], batch["task"]["dataset_index"]
+            obs_features, batch[self.target_modality], dataset_idx
         )
 
         return {"loss": action_loss, "loss_dict": losses_dict}
@@ -970,52 +1044,3 @@ class FlowerModel(nn.Module):
         self.rollout_step_counter = 0
         self.pred_action_seq = None
         self.eval()
-
-    @torch.no_grad()
-    def select_action(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-        Select action for inference (LeRobot protocol).
-        This method follows LeRobot conventions:
-        - Returns single action per timestep by default
-        - Used by LeRobot's evaluation/deployment pipeline
-
-        Args:
-            batch: Observation batch
-
-        Returns:
-            Selected action [B, action_dim]
-        """
-        # Encode observations
-        cond = self.model.encode_observations(batch)
-
-        # Sample noise
-        B = cond["features"].shape[0]
-        noise = torch.randn(
-            B, self.act_window_size, self.action_dim, device=self.device
-        )
-
-        # Sample actions
-        action_seq = self.model.sample_actions(noise, cond, inference=True)
-
-        # Return first action
-        if self.return_act_chunk:
-            return action_seq  # [B, T, action_dim]
-        else:
-            return action_seq[:, 0, :]  # [B, action_dim]
-
-    def step(self, obs: Dict, goal: Dict) -> torch.Tensor:
-        """
-        Returns the current action (or full chunk) based on the rollout step and updates the state.
-        """
-        if self.rollout_step_counter % self.multistep == 0:
-            self.pred_action_seq = self(obs, goal)
-        if not self.return_act_chunk:
-            current_action = self.pred_action_seq[0, self.rollout_step_counter]
-            if len(current_action.shape) == 2:
-                current_action = einops.rearrange(current_action, "b d -> b 1 d")
-        else:
-            current_action = self.pred_action_seq
-        self.rollout_step_counter += 1
-        if self.rollout_step_counter == self.multistep:
-            self.rollout_step_counter = 0
-        return current_action
