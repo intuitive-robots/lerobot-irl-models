@@ -1,8 +1,9 @@
+import logging
+import time
+from typing import Optional
+
 import cv2
 import pykinect_azure as pykinect
-import logging
-from typing import Optional
-import time
 
 from real_robot_env.robot.hardware_cameras import DiscreteCamera
 
@@ -61,7 +62,8 @@ class Azure(DiscreteCamera):
 
     def close(self):
         success = super().close()
-        if self.device: self.device.close()
+        if self.device:
+            self.device.close()
         self.device = None
         return success
 
@@ -118,6 +120,7 @@ class Azure(DiscreteCamera):
             type = pykinect.K4A_CALIBRATION_TYPE_DEPTH
 
         return self.device.get_calibration().get_matrix(type)
+
 
 if __name__ == "__main__":
     rs = Azure(device_id=1)

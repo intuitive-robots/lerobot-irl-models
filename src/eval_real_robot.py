@@ -3,6 +3,10 @@ import multiprocessing as mp
 import os
 import random
 
+# Set protobuf implementation to pure Python to avoid compatibility issues
+# between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import hydra
 import numpy as np
 import torch
@@ -119,6 +123,12 @@ def main(cfg: DictConfig) -> None:
             elif not key.startswith("model."):
                 # If no prefix, add 'model.'
                 new_key = "model." + key
+
+            # Map MLP layer names
+            new_key = new_key.replace(".mlp.c_fc1.", ".mlp.fc1.")
+            new_key = new_key.replace(".mlp.c_fc2.", ".mlp.fc2.")
+            new_key = new_key.replace(".mlp.c_proj.", ".mlp.proj.")
+
             new_state_dict[new_key] = value
 
         log.info(f"Preprocessed {len(new_state_dict)} keys from checkpoint")
@@ -152,7 +162,7 @@ def main(cfg: DictConfig) -> None:
     # Initialize environment and start evaluation
     # Import RealRobot here to avoid early import of polymetis/torchcontrol
     log.info("Initializing RealRobot environment...")
-    from real_robot_sim import RealRobot
+    from src.real_robot_env.real_robot_sim import RealRobot
 
     env_sim = RealRobot(device=cfg.device)
 

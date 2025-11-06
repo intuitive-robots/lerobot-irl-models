@@ -3,7 +3,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 numpy>=1.24.0
 einops>=0.7.0
-
+torchcontrol
 # Lerobot framework
 lerobot>=0.4.0
 

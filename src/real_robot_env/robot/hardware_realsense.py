@@ -1,8 +1,9 @@
 # Original Author: Marcel Ruehle
 import time
+from collections import OrderedDict
+
 import numpy as np
 import pyrealsense2 as rs
-from collections import OrderedDict
 
 from real_robot_env.robot.hardware_cameras import DiscreteCamera
 
@@ -126,7 +127,7 @@ class RealSense(DiscreteCamera):
         success = super().close()
         self.pipe.stop()
         return success
-    
+
     @staticmethod
     def get_devices(
         amount=-1, height: int = 480, width: int = 640, **kwargs

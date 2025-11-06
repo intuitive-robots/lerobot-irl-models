@@ -6,13 +6,13 @@ import einops
 import numpy as np
 import torch
 
-from base_sim import BaseSim
 from real_robot_env.real_robot_env import RealRobotEnv
 from real_robot_env.robot.hardware_audio import AudioInterface
 from real_robot_env.robot.hardware_depthai import DAICameraType, DepthAI
 from real_robot_env.robot.hardware_franka import ControlType, FrankaArm
 from real_robot_env.robot.hardware_frankahand import FrankaHand
 from real_robot_env.robot.utils.keyboard import KeyManager
+from src.real_robot_env.base_sim import BaseSim
 
 DELTA_T = 0.034
 

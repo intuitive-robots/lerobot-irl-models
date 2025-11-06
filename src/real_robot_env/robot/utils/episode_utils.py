@@ -1,13 +1,13 @@
-from functools import reduce
 import logging
 import os
-from pathlib import Path
 import re
+from functools import reduce
+from pathlib import Path
 from typing import Dict, Tuple
 
 import numpy as np
-from omegaconf import DictConfig, ListConfig, OmegaConf
 import torch
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,9 @@ def process_state(
         if window_size == 0 and seq_idx == 0:  # single file loader
             state_tensor = torch.from_numpy(episode[state_ob]).float()
         else:  # episode loader
-            state_tensor = torch.from_numpy(episode[state_ob][seq_idx : seq_idx + window_size]).float()
+            state_tensor = torch.from_numpy(
+                episode[state_ob][seq_idx : seq_idx + window_size]
+            ).float()
         # expand dims for single environment obs
         if len(state_tensor.shape) != 2:
             state_tensor = state_tensor.unsqueeze(0)
@@ -42,10 +44,13 @@ def process_state(
     seq_state_obs = torch.cat(state_obs_list_normalized, dim=1)
     seq_state_obs_unnormalized = torch.cat(state_obs_list_unnormalized, dim=1)
 
-    if not proprio_state.normalize_robot_orientation and "robot_orientation_idx" in proprio_state:
-        seq_state_obs[:, slice(*proprio_state.robot_orientation_idx)] = seq_state_obs_unnormalized[
+    if (
+        not proprio_state.normalize_robot_orientation
+        and "robot_orientation_idx" in proprio_state
+    ):
+        seq_state_obs[
             :, slice(*proprio_state.robot_orientation_idx)
-        ]
+        ] = seq_state_obs_unnormalized[:, slice(*proprio_state.robot_orientation_idx)]
 
     if not proprio_state.normalize:
         seq_state_obs = seq_state_obs_unnormalized
@@ -82,15 +87,20 @@ def process_rgb(
             # To Square image
             seq_rgb_obs_ = torch.from_numpy(rgb_obs).byte().permute(0, 3, 1, 2)
         else:  # episode loader
-            seq_rgb_obs_ = torch.from_numpy(rgb_obs[seq_idx : seq_idx + window_size]).byte().permute(0, 3, 1, 2)
+            seq_rgb_obs_ = (
+                torch.from_numpy(rgb_obs[seq_idx : seq_idx + window_size])
+                .byte()
+                .permute(0, 3, 1, 2)
+            )
         # we might have different transformations for the different cameras
         if rgb_obs_key in transforms:
-            seq_rgb_obs_ = reduce(lambda res, f: f(res), transforms[rgb_obs_key], seq_rgb_obs_)
+            seq_rgb_obs_ = reduce(
+                lambda res, f: f(res), transforms[rgb_obs_key], seq_rgb_obs_
+            )
             # seq_rgb_obs_ = transforms[rgb_obs_key](seq_rgb_obs_)
         seq_rgb_obs_dict[rgb_obs_key] = seq_rgb_obs_
     # shape: N_rgb_obs x (BxCxHxW)
     return {"rgb_obs": seq_rgb_obs_dict}
-
 
 
 def process_depth(
@@ -114,7 +124,9 @@ def process_depth(
         if window_size == 0 and seq_idx == 0:  # single file loader
             depth_ob_ = torch.from_numpy(depth_ob).float()
         else:  # episode loader
-            depth_ob_ = torch.from_numpy(depth_ob[seq_idx : seq_idx + window_size]).float()
+            depth_ob_ = torch.from_numpy(
+                depth_ob[seq_idx : seq_idx + window_size]
+            ).float()
         # we might have different transformations for the different cameras
         if depth_obs_key in transforms:
             depth_ob_ = transforms[depth_obs_key](depth_ob_)
@@ -141,22 +153,28 @@ def process_actions(
             action = transforms["actions"]((action, episode["robot_obs"]))
         seq_acts = torch.from_numpy(action).float()
     else:  # episode loader
-        seq_acts = torch.from_numpy(episode[action_key][seq_idx : seq_idx + window_size]).float()
+        seq_acts = torch.from_numpy(
+            episode[action_key][seq_idx : seq_idx + window_size]
+        ).float()
     return {"actions": seq_acts}
 
 
-def process_language(episode: Dict[str, np.ndarray], transforms: Dict, with_lang: bool) -> Dict[str, torch.Tensor]:
+def process_language(
+    episode: Dict[str, np.ndarray], transforms: Dict, with_lang: bool
+) -> Dict[str, torch.Tensor]:
     seq_lang = {"lang": torch.empty(0)}
     if with_lang:
         lang = torch.from_numpy(episode["language"]).float()
         if "language" in transforms:
             lang = transforms["language"](lang)
         seq_lang["lang"] = lang
-        seq_lang['lang_text']  = episode['language_text']
+        seq_lang["lang_text"] = episode["language_text"]
     return seq_lang
 
 
-def get_state_info_dict(episode: Dict[str, np.ndarray]) -> Dict[str, Dict[str, torch.Tensor]]:
+def get_state_info_dict(
+    episode: Dict[str, np.ndarray]
+) -> Dict[str, Dict[str, torch.Tensor]]:
     """
     Create a dictionary with raw state observations for environment resets.
 
@@ -192,7 +210,9 @@ def load_dataset_statistics(train_dataset_dir, val_dataset_dir, transforms):
         try:
             statistics = OmegaConf.load(Path(paths[dataset_type]) / "statistics.yaml")
             # Hack for maintaining two repositories with transforms
-            statistics = OmegaConf.create(OmegaConf.to_yaml(statistics).replace("calvin_agent", "mdt"))
+            statistics = OmegaConf.create(
+                OmegaConf.to_yaml(statistics).replace("calvin_agent", "mdt")
+            )
             # this ugly piece of code only exists because OmegaConf actually can't merge ListConfigs.
             # we do not want to override everything, but just the transforms that are specified in both
             # see https://stackoverflow.com/questions/61315623/omegaconf-can-i-influence-how-lists-are-merged
@@ -208,13 +228,17 @@ def load_dataset_statistics(train_dataset_dir, val_dataset_dir, transforms):
                                 transforms[dataset_type][modality][i] = dataset_trans
                                 break
                         if not exists:
-                            transforms[dataset_type][modality] = ListConfig([*conf_transforms, dataset_trans])
+                            transforms[dataset_type][modality] = ListConfig(
+                                [*conf_transforms, dataset_trans]
+                            )
         except FileNotFoundError:
             logger.warning("Could not load statistics.yaml")
     return transforms
 
 
-def lookup_naming_pattern(dataset_dir: Path, save_format: str) -> Tuple[Tuple[Path, str], int]:
+def lookup_naming_pattern(
+    dataset_dir: Path, save_format: str
+) -> Tuple[Tuple[Path, str], int]:
     """
     Check naming pattern of dataset files.
 

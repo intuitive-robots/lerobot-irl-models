@@ -2,8 +2,8 @@ import cv2
 
 
 def resize_and_crop(
-        cam_img_array, position, des_width: int = 500, des_height: int = 500
-    ):
+    cam_img_array, position, des_width: int = 500, des_height: int = 500
+):
     """
     Resizes and crops an image to a square shape, centered or aligned to the left or right side.
 
@@ -23,7 +23,6 @@ def resize_and_crop(
     Note that this method modifies the input image array in-place,
     so make a copy of the original image if you need to keep it intact.
     """
-
 
     # cam_image = np.load(cam_img_path)
 
@@ -48,13 +47,13 @@ def resize_and_crop(
     elif position == "center":
         left = (width - square_size) // 2
         top = (height - square_size) // 2
-        right = left + square_size 
-        bottom = top + square_size 
+        right = left + square_size
+        bottom = top + square_size
     elif position == "top_center_new_lab":
         left = 550
         top = 0
         right = 1700
-        bottom = top + square_size 
+        bottom = top + square_size
     elif position == "front_center_new_lab":
         left = 0
         top = 0
@@ -89,6 +88,11 @@ def resize_and_crop(
 
     return image_resized
 
+
 # Downscale image to downscale_res x downscale_res
 def downscale(image_resized, downscale_res):
-    return cv2.resize(image_resized, dsize=(downscale_res, downscale_res), interpolation=cv2.INTER_CUBIC)
+    return cv2.resize(
+        image_resized,
+        dsize=(downscale_res, downscale_res),
+        interpolation=cv2.INTER_CUBIC,
+    )

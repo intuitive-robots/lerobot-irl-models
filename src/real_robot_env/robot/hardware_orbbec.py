@@ -1,14 +1,13 @@
-import cv2
+import json
 import logging
-from typing import Optional, Union, Any, List
+import os
 import time
+from typing import Any, List, Optional, Union
+
+import cv2
 import numpy as np
 from pyorbbecsdk import *
-from pyorbbecsdk import FormatConvertFilter, VideoFrame
-from pyorbbecsdk import OBFormat, OBConvertFormat
-import os
-import json
-
+from pyorbbecsdk import FormatConvertFilter, OBConvertFormat, OBFormat, VideoFrame
 from sympy import false
 
 from real_robot_env.robot.hardware_cameras import DiscreteCamera
@@ -24,6 +23,7 @@ config_file_path = os.path.join(
     "../../../pyorbbecsdk/config/multi_device_sync_config.json",
 )
 
+
 def read_config():
     multi_device_sync_config = {}
     with open(config_file_path, "r") as f:
@@ -32,6 +32,7 @@ def read_config():
         multi_device_sync_config[device["serial_number"]] = device
         print(f"Device {device['serial_number']}: {device['config']['mode']}")
     return multi_device_sync_config
+
 
 def sync_mode_from_str(sync_mode_str: str) -> OBMultiDeviceSyncMode:
     # to lower case
@@ -52,7 +53,6 @@ def sync_mode_from_str(sync_mode_str: str) -> OBMultiDeviceSyncMode:
         return OBMultiDeviceSyncMode.HARDWARE_TRIGGERING
     else:
         raise ValueError(f"Invalid sync mode: {sync_mode_str}")
-
 
 
 def frame_to_bgr_image(frame: VideoFrame) -> Union[Optional[np.array], Any]:
@@ -99,15 +99,23 @@ class TemporalFilter:
         if self.previous_frame is None:
             result = frame
         else:
-            result = cv2.addWeighted(frame, self.alpha, self.previous_frame, 1 - self.alpha, 0)
+            result = cv2.addWeighted(
+                frame, self.alpha, self.previous_frame, 1 - self.alpha, 0
+            )
         self.previous_frame = result
         return result
 
 
 class ORBBEC(DiscreteCamera):
+    def __init__(
+        self,
+        orb_device,
+        device_index: int,
+        height=512,
+        width=512,
+        start_frame_latency=0,
+    ):
 
-    def __init__(self, orb_device, device_index: int, height = 512, width = 512, start_frame_latency = 0):
-        
         for _ in range(3):
             try:
                 self.orb_device = orb_device
@@ -116,8 +124,13 @@ class ORBBEC(DiscreteCamera):
             except Exception as e:
                 continue
         # self.temporal_filter = TemporalFilter(alpha=0.5)
-        super().__init__(f"ORB_{device_index}", f"ORB_{device_index}", height, width, start_frame_latency)
-
+        super().__init__(
+            f"ORB_{device_index}",
+            f"ORB_{device_index}",
+            height,
+            width,
+            start_frame_latency,
+        )
 
     def sync_setup(self):
 
@@ -129,26 +142,39 @@ class ORBBEC(DiscreteCamera):
         sync_config.mode = sync_mode_from_str(sync_config_json["config"]["mode"])
         sync_config.color_delay_us = sync_config_json["config"]["color_delay_us"]
         sync_config.depth_delay_us = sync_config_json["config"]["depth_delay_us"]
-        sync_config.trigger_out_enable = sync_config_json["config"]["trigger_out_enable"]
-        sync_config.trigger_out_delay_us = sync_config_json["config"]["trigger_out_delay_us"]
-        sync_config.frames_per_trigger = sync_config_json["config"]["frames_per_trigger"]
+        sync_config.trigger_out_enable = sync_config_json["config"][
+            "trigger_out_enable"
+        ]
+        sync_config.trigger_out_delay_us = sync_config_json["config"][
+            "trigger_out_delay_us"
+        ]
+        sync_config.frames_per_trigger = sync_config_json["config"][
+            "frames_per_trigger"
+        ]
         print(f"Device {serial_number} sync config: {sync_config}")
         self.orb_device.set_multi_device_sync_config(sync_config)
-
 
     def _setup_connect(self):
         self.sync_setup()
         try:
             config = Config()
             # Get the list of color stream profiles
-            color_profile_list = self.orb_pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
-            color_profile = color_profile_list.get_video_stream_profile(1280, 720, OBFormat.RGB, 30)
+            color_profile_list = self.orb_pipeline.get_stream_profile_list(
+                OBSensorType.COLOR_SENSOR
+            )
+            color_profile = color_profile_list.get_video_stream_profile(
+                1280, 720, OBFormat.RGB, 30
+            )
             # color_profile = color_profile_list.get_video_stream_profile(1920, 1080, OBFormat.RGB, 30)
             print("Color profile: ", color_profile)
             config.enable_stream(color_profile)
 
-            depth_profile_list = self.orb_pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
-            depth_profile = depth_profile_list.get_video_stream_profile(640, 576, OBFormat.Y16, 30)
+            depth_profile_list = self.orb_pipeline.get_stream_profile_list(
+                OBSensorType.DEPTH_SENSOR
+            )
+            depth_profile = depth_profile_list.get_video_stream_profile(
+                640, 576, OBFormat.Y16, 30
+            )
             print("Depth profile: ", depth_profile)
             config.enable_stream(depth_profile)
 
@@ -160,6 +186,7 @@ class ORBBEC(DiscreteCamera):
         except Exception as e:
             print(e)
             import traceback
+
             traceback.print_exc()
             assert e
 
@@ -203,7 +230,6 @@ class ORBBEC(DiscreteCamera):
         # self.orb_pipeline.enable_frame_sync()
         # self.orb_pipeline.start(self.config)
 
-
     def get_rgb(self, frame):
         # frame = self.orb_pipeline.wait_for_frames(100)
         color_frame = frame.get_color_frame()
@@ -211,7 +237,9 @@ class ORBBEC(DiscreteCamera):
             return None
         # covert to RGB format
         image = frame_to_bgr_image(color_frame)
-        image = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_LINEAR) 
+        image = cv2.resize(
+            image, (self.width, self.height), interpolation=cv2.INTER_LINEAR
+        )
         return image
         # return cv2.resize(image, (576, 640), interpolation=cv2.INTER_AREA)
 
@@ -228,14 +256,17 @@ class ORBBEC(DiscreteCamera):
         depth_data = depth_data.reshape((height, width))
 
         depth_data = depth_data.astype(np.float32) * scale
-        depth_data = np.where((depth_data > MIN_DEPTH) & (depth_data < MAX_DEPTH), depth_data, 0)
+        depth_data = np.where(
+            (depth_data > MIN_DEPTH) & (depth_data < MAX_DEPTH), depth_data, 0
+        )
         depth_data = depth_data.astype(np.uint16)
-        depth_data = cv2.resize(depth_data, (self.width, self.height), interpolation=cv2.INTER_NEAREST)
+        depth_data = cv2.resize(
+            depth_data, (self.width, self.height), interpolation=cv2.INTER_NEAREST
+        )
         # Apply temporal filtering
         # depth_data = self.temporal_filter.process(depth_data)
         # print(depth_data.shape)
         return depth_data
-
 
         center_y = int(height / 2)
         center_x = int(width / 2)
@@ -246,10 +277,11 @@ class ORBBEC(DiscreteCamera):
         #     print("center distance: ", center_distance)
         #     last_print_time = current_time
 
-        depth_image = cv2.normalize(depth_data, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        
-        return cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
+        depth_image = cv2.normalize(
+            depth_data, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
+        )
 
+        return cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
 
     def get_sensors(self):
         """
@@ -305,7 +337,6 @@ class ORBBEC(DiscreteCamera):
         return True
 
 
-
 if __name__ == "__main__":
     # ctx = Context()
     # device_list = ctx.query_devices()
@@ -351,10 +382,9 @@ if __name__ == "__main__":
 
                 if data is not None:
                     # print(device.name, data['rgb'].shape, data['d'].shape)
-                    cv2.imshow(f"{device.name}Color Viewer", data['rgb'])
+                    cv2.imshow(f"{device.name}Color Viewer", data["rgb"])
                     key = cv2.waitKey(1)
-                    cv2.imshow(f"{device.name}Depth Viewer", data['d'])
+                    cv2.imshow(f"{device.name}Depth Viewer", data["d"])
                     key = cv2.waitKey(1)
         except KeyboardInterrupt:
             break
-

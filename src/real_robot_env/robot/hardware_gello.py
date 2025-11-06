@@ -1,14 +1,17 @@
-from collections import namedtuple
 import pickle
+from collections import namedtuple
+
 import zmq
 
 from real_robot_env.robot.hardware_robot import RobotArm, RobotHand
 
 DEFAULT_ROBOT_PORT = 6000
 
-class AbstractGello():
 
-    def __init__(self, name: str, host: str = "127.0.0.1", port: int = DEFAULT_ROBOT_PORT):
+class AbstractGello:
+    def __init__(
+        self, name: str, host: str = "127.0.0.1", port: int = DEFAULT_ROBOT_PORT
+    ):
         self.name = name
         self.host = host
         self.port = port
@@ -31,7 +34,7 @@ class AbstractGello():
 
     def okay(self):
         return True
-    
+
     def apply_commands(self):
         # At the moment Gello can't be controled
         return 0
@@ -40,27 +43,26 @@ class AbstractGello():
         # At the moment Gello can't be controled
         return 0
 
+
 class GelloArm(AbstractGello, RobotArm):
-
     def get_state(self):
-            if self._socket.closed:
-                raise Exception(f"Not connected to {self.name}")
-            
-            request = {"method": "get_joint_state"}
-            send_message = pickle.dumps(request)
-            self._socket.send(send_message)
-            result = pickle.loads(self._socket.recv())
+        if self._socket.closed:
+            raise Exception(f"Not connected to {self.name}")
 
-            return result
-    
+        request = {"method": "get_joint_state"}
+        send_message = pickle.dumps(request)
+        self._socket.send(send_message)
+        result = pickle.loads(self._socket.recv())
+
+        return result
+
     def go_to_within_limits(self, *args, **kwargs):
         # At the moment Gello can't be controled
         raise NotImplementedError
 
 
 class GelloGripper(AbstractGello, RobotHand):
-
-    def __init__(self, name, host = "127.0.0.1", port = DEFAULT_ROBOT_PORT):
+    def __init__(self, name, host="127.0.0.1", port=DEFAULT_ROBOT_PORT):
         super().__init__(name, host, port)
         self.max_width = 1
         self.min_width = 0
@@ -68,7 +70,7 @@ class GelloGripper(AbstractGello, RobotHand):
     def get_sensors(self):
         if self._socket.closed:
             raise Exception(f"Not connected to {self.name}")
-        
+
         request = {"method": "get_gripper_state"}
         send_message = pickle.dumps(request)
         self._socket.send(send_message)
@@ -81,4 +83,3 @@ class GelloGripper(AbstractGello, RobotHand):
         # Polymetis / FrankaHand outputs the gripper's width between min_width and max_width
 
         return self.max_width - closed
-    

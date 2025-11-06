@@ -1,8 +1,8 @@
-from real_robot_env.robot.hardware_cameras import DiscreteCamera
-import cv2
+import logging
 import time
 from enum import Enum
-import logging
+
+import cv2
 
 from real_robot_env.robot.hardware_cameras import DiscreteCamera
 
@@ -142,8 +142,6 @@ class DepthAI(DiscreteCamera):
 if __name__ == "__main__":
 
     # DepthAI is bugged for multiprocessing, this fixes it (See https://github.com/luxonis/depthai/issues/697)
-    import depthai as dai
-
     # DepthAI is bugged for multiprocessing, this fixes it (See https://github.com/luxonis/depthai/issues/697)
     import depthai as dai
 

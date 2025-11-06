@@ -1,17 +1,16 @@
 "This file contains the abstract classes necessary for all types of devices for recording."
 
+import shutil
 from abc import ABC, abstractmethod
-from typing import Optional, TypeVar, Type, Generic, List, Any
+from bisect import bisect_right
+from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing import Event, Process
 from multiprocessing.managers import BaseManager
-from bisect import bisect_right
-from datetime import datetime
-from time import sleep
-from tempfile import TemporaryDirectory
-import shutil
-from dataclasses import dataclass
-
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from time import sleep
+from typing import Any, Generic, List, Optional, Type, TypeVar
 
 
 class RecordingDevice(ABC):
@@ -120,7 +119,7 @@ class DiscreteDevice(RecordingDevice):
         device_id: str,
         name: Optional[str] = None,
         start_frame_latency: int = 0,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Instantiates a discrete device.
@@ -131,9 +130,9 @@ class DiscreteDevice(RecordingDevice):
             start_frame_latency (int): Number of frames to skip at the start of the recording.
         """
         super().__init__(
-            device_id = device_id,
-            name = name if name else f"discrete_device_{device_id}",
-            **kwargs
+            device_id=device_id,
+            name=name if name else f"discrete_device_{device_id}",
+            **kwargs,
         )
         self.timestamps = []
         self.start_frame_latency = start_frame_latency
@@ -165,7 +164,9 @@ class DiscreteDevice(RecordingDevice):
     def get_devices(
         amount: int, device_type: str = "discrete", **kwargs
     ) -> list["DiscreteDevice"]:
-        super(DiscreteDevice, DiscreteDevice).get_devices(amount, device_type=device_type, **kwargs)
+        super(DiscreteDevice, DiscreteDevice).get_devices(
+            amount, device_type=device_type, **kwargs
+        )
 
 
 # Coninuous Recording
@@ -191,9 +192,9 @@ class ContinuousDevice(RecordingDevice):
             name (Optional[str]): Name of the device. Default: "continuous_device_`device_id`"
         """
         super().__init__(
-            device_id = device_id,
-            name = name if name else f"continuous_device_{device_id}",
-            **kwargs
+            device_id=device_id,
+            name=name if name else f"continuous_device_{device_id}",
+            **kwargs,
         )
 
     @abstractmethod
@@ -232,9 +233,11 @@ class ContinuousDevice(RecordingDevice):
             amount, device_type=device_type, **kwargs
         )
 
+
 # author of class: TimWindecker
 
 T = TypeVar("T", bound=DiscreteDevice)
+
 
 class AsynchronousDevice(ContinuousDevice, Generic[T]):
     """
@@ -244,7 +247,7 @@ class AsynchronousDevice(ContinuousDevice, Generic[T]):
     NOTE: To ensure that all of the output files for each frame are stored correctly, one must set
     `self.formats` to the strings that represent the distinctive file endings, e.g.
     `self.formats = ["_img.png", "_depth.png"]`.
-    The function `store_last_frame` of the wrapped device must therefore store the frames with 
+    The function `store_last_frame` of the wrapped device must therefore store the frames with
     those exact suffixes itself.
     """
 
@@ -276,7 +279,7 @@ class AsynchronousDevice(ContinuousDevice, Generic[T]):
                 "_failed_connect",
                 "close",
                 "store_last_frame",
-                "get_formats"
+                "get_formats",
             ),
         )
         DeviceManager.register("CaptureInterval", Container[int])
@@ -374,14 +377,18 @@ class AsynchronousDevice(ContinuousDevice, Generic[T]):
                         timestamp_unix = timestamp.timestamp()
                         timestamp_path_map.append((timestamp_unix, frame_path))
                     except ValueError:
-                        print(f"Skipping file with invalid timestamp: {frame_path.name}")
+                        print(
+                            f"Skipping file with invalid timestamp: {frame_path.name}"
+                        )
 
                 # Sort map by timestamps
                 timestamp_path_map.sort(key=lambda t: t[0])
 
                 # Map desired timestamps to paths
                 sorted_timetamps = [t for t, _ in timestamp_path_map]
-                print(f"{self.name}'s frame rate: {len(sorted_timetamps) / (sorted_timetamps[-1] - sorted_timetamps[0]):.2f} Hz")
+                print(
+                    f"{self.name}'s frame rate: {len(sorted_timetamps) / (sorted_timetamps[-1] - sorted_timetamps[0]):.2f} Hz"
+                )
                 desired_indices = [
                     max(bisect_right(sorted_timetamps, t) - 1, 0) for t in timestamps
                 ]  # Find index of element <= t
@@ -411,7 +418,7 @@ class AsynchronousDevice(ContinuousDevice, Generic[T]):
         while not stop_event.is_set():
 
             # Capture and store
-            device.store_last_frame(directory) # store frame in temp dir with timestamp
+            device.store_last_frame(directory)  # store frame in temp dir with timestamp
 
             # Sleep
             sleep(capture_interval.get_value())

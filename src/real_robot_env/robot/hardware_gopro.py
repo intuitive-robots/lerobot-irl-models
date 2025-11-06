@@ -2,16 +2,18 @@
 
 import time
 from multiprocessing import Process
+
 import netifaces as ni
 from goprocam import GoProCamera, constants
 
 from real_robot_env.robot.hardware_cameras import ContinuousCamera
 
+
 class GoPro(ContinuousCamera):
     """
     This implementation only works with **GoPro Hero 9 Black** and acts as a workaround for the
     following issue: https://github.com/KonradIT/gopro-py-api/issues/184
-    
+
     TLDR: When sending a request to the GoPro to record a video/take a photo, the GoPro disconnects
     the USB connection.
 
@@ -30,13 +32,13 @@ class GoPro(ContinuousCamera):
     """
 
     def __init__(
-            self,
-            device_id: str,
-            name = None,
-            height: int = 512,
-            width: int = 512,
-            default_fps: float = 20,
-            cut_ending=True
+        self,
+        device_id: str,
+        name=None,
+        height: int = 512,
+        width: int = 512,
+        default_fps: float = 20,
+        cut_ending=True,
     ) -> None:
         super().__init__(
             device_id,
@@ -44,28 +46,26 @@ class GoPro(ContinuousCamera):
             height=height,
             width=width,
             default_fps=default_fps,
-            cut_ending=cut_ending
+            cut_ending=cut_ending,
         )
-        self.formats = ['.mp4']
+        self.formats = [".mp4"]
         self.gopro_device = None
 
         self.rec_process = None
 
-
     def _setup_connect(self):
         self.gopro_device = GoProCamera.GoPro(
-            ip_address = GoProCamera.GoPro.getWebcamIP(self.device_id),
-            camera = constants.gpcontrol,
-            webcam_device = self.device_id
+            ip_address=GoProCamera.GoPro.getWebcamIP(self.device_id),
+            camera=constants.gpcontrol,
+            webcam_device=self.device_id,
         )
-        #self.gopro_device.gpControlSet(constants.Video.FRAME_RATE, constants.Video.FrameRate.FR30)
+        # self.gopro_device.gpControlSet(constants.Video.FRAME_RATE, constants.Video.FrameRate.FR30)
 
         # determine latency
-        self.latency = 2.351970832 # slightly too low: 2.272919736
+        self.latency = 2.351970832  # slightly too low: 2.272919736
 
     def _failed_connect(self):
         self.gopro_device = None
-
 
     def start_recording(self):
         super().start_recording()
@@ -75,7 +75,7 @@ class GoPro(ContinuousCamera):
         # shoot_video will fail, due to connection to GoPro being lost.
         # Camera will reconnect to USB port after finishing recoring.
         def shoot_video():
-            try: 
+            try:
                 self.gopro_device.shoot_video(0)
             except Exception as e:
                 print(f"Error while shooting video: {e}")
@@ -101,10 +101,10 @@ class GoPro(ContinuousCamera):
         print()
         print("Please manually stop the recording of the GoPro")
         while not gopro_iface:
-            if count >= 30 * 10: # you have 30 seconds to stop the recording..
+            if count >= 30 * 10:  # you have 30 seconds to stop the recording..
                 raise RuntimeError(
-                    "Camera did not reconnect after recording. " +
-                    "Did you forget to manually stop the recording?"
+                    "Camera did not reconnect after recording. "
+                    + "Did you forget to manually stop the recording?"
                 )
             time.sleep(0.1)
             count += 1
@@ -113,13 +113,11 @@ class GoPro(ContinuousCamera):
         self.connect()
         return True
 
-
     def _store_video(self, video_file: str):
         if self.device_id not in ni.interfaces() or self.gopro_device is None:
             return False
         self.gopro_device.downloadLastMedia(custom_filename=video_file)
         return True
-
 
     def delete_recording(self):
         if self.device_id not in ni.interfaces() or self.gopro_device is None:
@@ -127,12 +125,10 @@ class GoPro(ContinuousCamera):
         self.gopro_device.delete("last")
         return True
 
-
     def close(self) -> bool:
         success = super().close()
         self.gopro_device = None
         return success
-
 
     @staticmethod
     def get_interfaces(amount=-1):
@@ -143,14 +139,15 @@ class GoPro(ContinuousCamera):
         gopro_ifaces = []
         counter = 0
         for iface in ifaces:
-            if amount != -1 and counter >= amount: break
+            if amount != -1 and counter >= amount:
+                break
             try:
                 ip = ni.ifaddresses(iface)[ni.AF_INET][0]["addr"]
                 if ip.startswith("172.") and iface.startswith("enx"):
                     gopro_ifaces.append(iface)
                     counter += 1
             except Exception as e:
-                continue # Ignore interfaces that do not have an IP address or are not GoPro interfaces
+                continue  # Ignore interfaces that do not have an IP address or are not GoPro interfaces
         return gopro_ifaces
 
     @staticmethod
@@ -159,11 +156,13 @@ class GoPro(ContinuousCamera):
         Finds and returns a single GoPro interface connected to the computer.
         """
         gopro_ifaces = GoPro.get_interfaces(1)
-        if gopro_ifaces: return gopro_ifaces[0]
-        else:            return None
+        if gopro_ifaces:
+            return gopro_ifaces[0]
+        else:
+            return None
 
     @staticmethod
-    def get_devices(amount: int = 1, **kwargs) -> list['GoPro']:
+    def get_devices(amount: int = 1, **kwargs) -> list["GoPro"]:
         """
         Finds and returns specific amount of instances of this class.
         Currently, only 1 GoPro is allowed!
@@ -173,13 +172,13 @@ class GoPro(ContinuousCamera):
                           Currently, only `amount = 1` is allowed.
             fps (int): FPS with which the video is sampled to create the frames.
             **kwargs: Arbitrary keyword arguments.
-        
+
         Returns:
             devices (list[GoPro]): List containing single found device.
                                    If it isn't found, `[]` is returned.
         """
         assert amount == 1, "Only one GoPro camera supported currently."
-        super(GoPro,GoPro).get_devices(amount, device_type="GoPro", **kwargs)
+        super(GoPro, GoPro).get_devices(amount, device_type="GoPro", **kwargs)
         gopro_iface = GoPro.get_single_interface()
         if gopro_iface:
             return [GoPro(device_id=gopro_iface)]

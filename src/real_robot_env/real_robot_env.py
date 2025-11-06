@@ -1,7 +1,6 @@
 import gymnasium as gym
 
 from real_robot_env.robot.hardware_devices import ContinuousDevice, DiscreteDevice
-
 from real_robot_env.robot.hardware_robot import RobotArm, RobotHand
 
 
@@ -10,8 +9,8 @@ class RealRobotEnv(gym.Env):
         self,
         robot_arm: RobotArm,
         robot_hand: RobotHand,
-        discrete_devices: list[DiscreteDevice]=[],
-        continuous_devices: list[ContinuousDevice]=[],
+        discrete_devices: list[DiscreteDevice] = [],
+        continuous_devices: list[ContinuousDevice] = [],
     ):
         self.robot_arm = robot_arm
         self.robot_hand = robot_hand
@@ -23,7 +22,7 @@ class RealRobotEnv(gym.Env):
 
         for device in discrete_devices:
             assert device.connect(), f"Connection to {device.name} failed"
-            
+
         for device in continuous_devices:
             assert device.connect(), f"Connection to {device.name} failed"
 
@@ -39,10 +38,10 @@ class RealRobotEnv(gym.Env):
     def reset(self):
         for device in self.continuous_devices:
             device.stop_recording()
-        
+
         self.robot_arm.reset()
         self.robot_hand.reset()
-        
+
         for device in self.continuous_devices:
             device.start_recording()
 
@@ -54,7 +53,7 @@ class RealRobotEnv(gym.Env):
     def close(self):
         for device in self.continuous_devices:
             device.stop_recording()
-            
+
         if not self.robot_arm.close():
             print(f"Failed to close {self.robot_arm.name}")
 
@@ -64,7 +63,7 @@ class RealRobotEnv(gym.Env):
         for device in self.discrete_devices:
             if not device.close():
                 print(f"Failed to close {device.name}")
-                
+
         for device in self.continuous_devices:
             if not device.close():
                 print(f"Failed to close {device.name}")
@@ -77,7 +76,7 @@ class RealRobotEnv(gym.Env):
 
         for device in self.discrete_devices:
             obs_dict[device.name] = device.get_sensors()
-        
+
         for device in self.continuous_devices:
             obs_dict[device.name] = device.get_state()
 

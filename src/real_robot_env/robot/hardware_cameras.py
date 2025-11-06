@@ -1,17 +1,21 @@
 "This file contains the abstract classes useful for integrating various camera types."
 
-from abc import abstractmethod
-import time
-from typing import Any, Optional, TypeVar, Generic, Type
-from multiprocessing import Process, Event, Pipe
-from pathlib import Path
 import datetime
+import time
+from abc import abstractmethod
+from multiprocessing import Event, Pipe, Process
+from pathlib import Path
+from typing import Any, Generic, Optional, Type, TypeVar
 
 import cv2
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 
-from real_robot_env.robot.hardware_devices import DiscreteDevice, ContinuousDevice
-from real_robot_env.robot.hardware_devices import AsynchronousDevice
+from real_robot_env.robot.hardware_devices import (
+    AsynchronousDevice,
+    ContinuousDevice,
+    DiscreteDevice,
+)
+
 
 class DiscreteCamera(DiscreteDevice):
     """
@@ -27,13 +31,13 @@ class DiscreteCamera(DiscreteDevice):
         height: int = 512,
         width: int = 512,
         start_frame_latency: int = 0,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
-            device_id = device_id,
-            name = name if name else f"discrete_cam_{device_id}",
-            start_frame_latency = start_frame_latency,
-            **kwargs
+            device_id=device_id,
+            name=name if name else f"discrete_cam_{device_id}",
+            start_frame_latency=start_frame_latency,
+            **kwargs,
         )
         self.formats = [".png"]
         self.height, self.width = height, width
@@ -43,10 +47,10 @@ class DiscreteCamera(DiscreteDevice):
         self.stop_frame_storage_event = Event()
         self.write_process = Process(
             target=self.__store_frames,
-            args=[self.reader, self.stop_frame_storage_event]
+            args=[self.reader, self.stop_frame_storage_event],
         )
 
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def _setup_connect(self):
         self.write_process.start()
 
@@ -61,7 +65,7 @@ class DiscreteCamera(DiscreteDevice):
         """
         Prompts the camera to output a single frame and returns the *unprocessed* sensor data.
         Is overwritten by subclass.
-        
+
         Output should have the following format:
         `{'time': POSIX timestamp (like time.time()), 'rgb': rgb_vals, 'd' [opt]: depth_vals}`
 
@@ -126,7 +130,7 @@ class DiscreteCamera(DiscreteDevice):
         finally:
             reader.close()
 
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def close(self) -> bool:
         """
         Closes the connection to this instance and stops the frame storage process.
@@ -142,9 +146,13 @@ class DiscreteCamera(DiscreteDevice):
         return True
 
     @staticmethod
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def get_devices(
-        amount: int, device_type="discrete", height: int = 512, width: int = 512, **kwargs
+        amount: int,
+        device_type="discrete",
+        height: int = 512,
+        width: int = 512,
+        **kwargs,
     ) -> list["DiscreteCamera"]:
         """
         Finds and returns specific amount of instances of this class. Is overwritten by subclass.
@@ -181,12 +189,11 @@ class ContinuousCamera(ContinuousDevice):
         width: int = 512,
         default_fps: float = 20,
         cut_ending=True,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
-            device_id = device_id,
-            name = name if name else f"continuous_cam_{device_id}"
-            **kwargs
+            device_id=device_id,
+            name=name if name else f"continuous_cam_{device_id}" ** kwargs,
         )
         self.formats = [".mp4"]
         self.height, self.width = height, width
@@ -194,16 +201,16 @@ class ContinuousCamera(ContinuousDevice):
         self.default_fps = default_fps
         self.cut_ending = cut_ending
         self.recording_start = 0.0  # timestamp, where recording actually started
-        self.recording_stop = 0.0 # timestamp, where recording should end
+        self.recording_stop = 0.0  # timestamp, where recording should end
 
         self.frame_extraction_processes = []
 
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def start_recording(self) -> bool:
         self.recording_start = time.time() + self.latency
         return True
 
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def stop_recording(self) -> bool:
         self.recording_stop = time.time()
         return True
@@ -239,7 +246,6 @@ class ContinuousCamera(ContinuousDevice):
     def __extract_frames_at_timestamps(
         self, video_file, directory, timestamps, recording_start
     ):
-
         def convert_to_images():
             vidcap = cv2.VideoCapture(video_file)
             idx = 0
@@ -269,7 +275,6 @@ class ContinuousCamera(ContinuousDevice):
         recording_stop,
         cut_ending=True,
     ):
-
         def convert_to_images():
             if cut_ending:
                 duration = recording_stop - recording_start  # in seconds
@@ -290,9 +295,13 @@ class ContinuousCamera(ContinuousDevice):
         return True
 
     @staticmethod
-    @abstractmethod # Should be overwritten but also called by subclass.
+    @abstractmethod  # Should be overwritten but also called by subclass.
     def get_devices(
-        amount: int, device_type="continuous", height: int = 512, width: int = 512, **kwargs
+        amount: int,
+        device_type="continuous",
+        height: int = 512,
+        width: int = 512,
+        **kwargs,
     ) -> list["DiscreteCamera"]:
         """
         Finds and returns specific amount of instances of this class. Is overwritten by subclass.
@@ -325,9 +334,7 @@ class AsynchronousCamera(AsynchronousDevice, ContinuousCamera, Generic[T]):
 
     def __init__(self, camera_class: Type[T], capture_interval=0, **kwargs):
         super().__init__(
-            device_class = camera_class,
-            capture_interval = capture_interval,
-            **kwargs
+            device_class=camera_class, capture_interval=capture_interval, **kwargs
         )
 
     def _store_video(self, video_file: str):

@@ -5,17 +5,15 @@ Source  :: https://github.com/vikashplus/robohive
 License :: Under Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 ================================================= """
 
-from typing import Dict
 import time
+from enum import Enum, auto
+from typing import Dict
 
 import numpy as np
 import torch
-
-from polymetis import RobotInterface
 import torchcontrol as toco
+from polymetis import RobotInterface
 from torchcontrol.transform import Rotation as R
-
-from enum import Enum, auto
 
 from real_robot_env.robot.hardware_robot import ArmState, RobotArm
 
@@ -23,7 +21,7 @@ from real_robot_env.robot.hardware_robot import ArmState, RobotArm
 class HybridJointImpedanceControl(toco.PolicyModule):
     """
     Impedance control in joint space, but with both fixed joint gains and adaptive operational space gains.
-    
+
     This policy can be updated with the parameters:
     - kp
     - kd
@@ -110,7 +108,7 @@ class HybridJointImpedanceControl(toco.PolicyModule):
 class DeltaHybridJointImpedanceControl(HybridJointImpedanceControl):
     """
     Impedance control in joint space, but with both fixed joint gains and adaptive operational space gains.
-    
+
     This policy can be updated with the parameters:
     - kp
     - kd
@@ -206,7 +204,9 @@ class DeltaCartesianImpedanceControl(toco.PolicyModule):
         self.ee_pos_desired = torch.nn.Parameter(ee_pos_current)
         self.ee_quat_desired = torch.nn.Parameter(ee_quat_current)
         self.ee_delta_pos_desired = torch.nn.Parameter(torch.tensor([0.0, 0.0, 0.0]))
-        self.ee_delta_quat_desired = torch.nn.Parameter(torch.tensor([0.0, 0.0, 0.0, 1.0]))
+        self.ee_delta_quat_desired = torch.nn.Parameter(
+            torch.tensor([0.0, 0.0, 0.0, 1.0])
+        )
         self.ee_vel_desired = torch.nn.Parameter(torch.zeros(3))
         self.ee_rvel_desired = torch.nn.Parameter(torch.zeros(3))
 
@@ -232,12 +232,16 @@ class DeltaCartesianImpedanceControl(toco.PolicyModule):
             self.ee_pos_desired = self.ee_delta_pos_desired + self.ee_pos_desired
             # Reset delta values
             self.ee_delta_pos_desired = torch.tensor([0.0, 0.0, 0.0])
-        if not torch.all(self.ee_delta_quat_desired == torch.tensor([0.0, 0.0, 0.0, 1.0])):
+        if not torch.all(
+            self.ee_delta_quat_desired == torch.tensor([0.0, 0.0, 0.0, 1.0])
+        ):
             # Update desired absolute rotation
-            self.ee_quat_desired = R.functional.quaternion_multiply(self.ee_delta_quat_desired, self.ee_quat_desired)
+            self.ee_quat_desired = R.functional.quaternion_multiply(
+                self.ee_delta_quat_desired, self.ee_quat_desired
+            )
             # Reset delta values
             self.ee_delta_quat_desired = torch.tensor([0.0, 0.0, 0.0, 1.0])
-        
+
         jacobian = self.robot_model.compute_jacobian(joint_pos_current)
         ee_twist_current = jacobian @ joint_vel_current
 
@@ -263,7 +267,7 @@ class DeltaCartesianImpedanceControl(toco.PolicyModule):
 class JointPDPolicy(toco.PolicyModule):
     """
     Custom policy that performs PD control around a desired joint position
-    
+
     This policy can be updated with the parameters:
     - kp
     - kd
@@ -545,7 +549,7 @@ class FrankaArm(RobotArm):
 
         # Check that values are Torch tensors
         udpate_pkt = {}
-        for p, v in kwargs.items():        
+        for p, v in kwargs.items():
             if v is not None:
                 udpate_pkt[p] = v if torch.is_tensor(v) else torch.tensor(v)
 
@@ -583,13 +587,18 @@ class FrankaArm(RobotArm):
 
         return waypoints, feasible_vel
 
-    def go_to_within_limits(self, goal, *, max_vel_norm_factor=1):  # Currently, this only supports joint space
+    def go_to_within_limits(
+        self, goal, *, max_vel_norm_factor=1
+    ):  # Currently, this only supports joint space
         if not torch.is_tensor(goal):
             goal = torch.tensor(goal)
         goal = goal.clone().detach()
         q_initial = self.robot.get_joint_positions().detach().cpu()
         waypoints, feasible_vel = self.generate_waypoints_within_limits(
-            q_initial, goal, self.hz, max_vel_norm=self.velocity_limits_norm * max_vel_norm_factor
+            q_initial,
+            goal,
+            self.hz,
+            max_vel_norm=self.velocity_limits_norm * max_vel_norm_factor,
         )
         dwaypoints = torch.diff(waypoints, dim=0)
         for i in range(len(waypoints)):
