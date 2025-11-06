@@ -150,6 +150,21 @@ def train(cfg: DictConfig) -> None:
         else:
             state_dict = checkpoint
 
+        # Fix key naming: replace 'agent.' prefix with 'model.' prefix
+        new_state_dict = {}
+        for key, value in state_dict.items():
+            if key.startswith("agent."):
+                # Replace 'agent.' with 'model.'
+                new_key = "model." + key[6:]  # Remove 'agent.' and add 'model.'
+                new_state_dict[new_key] = value
+            else:
+                new_state_dict[key] = value
+
+        state_dict = new_state_dict
+        log.info(
+            f"Mapped {len([k for k in state_dict.keys() if k.startswith('model.')])} keys from 'agent.' to 'model.' prefix"
+        )
+
         # Load weights (non-strict to allow for fine-tuning with different architectures)
         missing_keys, unexpected_keys = policy.load_state_dict(state_dict, strict=False)
 

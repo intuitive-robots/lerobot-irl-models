@@ -56,7 +56,7 @@ class FlowerVLAConfig(PreTrainedConfig):
     # Positional encoding
     use_rope: bool = True
     use_nope: bool = False
-    query_seq_len: int = 120
+    query_seq_len: int = 100
     rope_theta: float = 1000.0
 
     # Action output configuration

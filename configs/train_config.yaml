@@ -14,7 +14,7 @@ policy:
 
 dataset:
   repo_id: "trickandtreat_lerobot"
-  root: "/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot"
+  root: "/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot"
 
 training:
   batch_size: 4
@@ -28,7 +28,7 @@ wandb:
   entity: null
   mode: "disabled"
 
-pretrained_policy_path: "/home/multimodallearning/Downloads/360000_model_weight.pt"
+pretrained_policy_path: "/hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt"
 
 seed: 42
 device: "cuda"
