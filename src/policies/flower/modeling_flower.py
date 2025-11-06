@@ -565,6 +565,8 @@ class FlowerModel(nn.Module):
         """
         device = self.device
         default_dtype = next(self.parameters()).dtype
+        # Debug: print available keys
+        image_tensor = batch["observation.images.right_cam"]
         # Handle both 4D [B, C, H, W] and 5D [B, T, C, H, W] image tensors
         if len(image_tensor.shape) == 4:
             # Shape is [B, C, H, W], add temporal dimension
