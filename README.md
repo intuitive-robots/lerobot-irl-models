@@ -6,6 +6,7 @@ conda create --name lerobot-irl-models python=3.10
 conda activate lerobot-irl-models
 pip install -r requirements.txt
 ```
+conda install -c conda-forge ffmpeg
 
 # Models
 ## BESO LeRobot

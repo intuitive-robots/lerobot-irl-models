@@ -1,11 +1,15 @@
 import importlib
 import logging
+import os
 import sys
 from pathlib import Path
 
 import hydra
 import torch
 from omegaconf import DictConfig, OmegaConf
+
+# Force PyAV as video backend to avoid torchcodec FFmpeg issues
+os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -42,6 +46,25 @@ def instantiate_policy_config(policy_cfg: DictConfig) -> FlowerVLAConfig:
 def train(cfg: DictConfig) -> None:
     log.info("Starting training for Flower...")
     log.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
+
+    # Patch LeRobot to force PyAV backend
+    try:
+        from lerobot.datasets import video_utils
+
+        original_decode = video_utils.decode_video_frames
+
+        def patched_decode_video_frames(
+            video_path, timestamps, tolerance_s, backend=None
+        ):
+            # Force PyAV backend regardless of what was requested
+            return video_utils.decode_video_frames_pyav(
+                video_path, timestamps, tolerance_s
+            )
+
+        video_utils.decode_video_frames = patched_decode_video_frames
+        log.info("Successfully patched video backend to use PyAV")
+    except Exception as e:
+        log.warning(f"Could not patch video backend: {e}")
 
     # Set up the policy factory for Flower
     factory.get_policy_class = get_flower_factory()
@@ -105,6 +128,7 @@ def train(cfg: DictConfig) -> None:
     dataset_cfg = DatasetConfig(
         repo_id=cfg.dataset.repo_id,  # Dataset name (for logging/identification)
         root=str(dataset_path),  # Full path to dataset directory
+        video_backend="pyav",  # Use PyAV instead of torchcodec to avoid FFmpeg issues
     )
 
     # Set up W&B configuration
