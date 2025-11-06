@@ -175,18 +175,25 @@ def train(cfg: DictConfig) -> None:
             state_dict = checkpoint
 
         # Fix key naming: replace 'agent.' prefix with 'model.' prefix
+        # and map MLP layer names (c_fc1 -> fc1, c_fc2 -> fc2, c_proj -> proj)
         new_state_dict = {}
         for key, value in state_dict.items():
-            if key.startswith("agent."):
-                # Replace 'agent.' with 'model.'
-                new_key = "model." + key[6:]  # Remove 'agent.' and add 'model.'
-                new_state_dict[new_key] = value
-            else:
-                new_state_dict[key] = value
+            new_key = key
+
+            # Replace 'agent.' with 'model.'
+            if new_key.startswith("agent."):
+                new_key = "model." + new_key[6:]  # Remove 'agent.' and add 'model.'
+
+            # Map MLP layer names
+            new_key = new_key.replace(".mlp.c_fc1.", ".mlp.fc1.")
+            new_key = new_key.replace(".mlp.c_fc2.", ".mlp.fc2.")
+            new_key = new_key.replace(".mlp.c_proj.", ".mlp.proj.")
+
+            new_state_dict[new_key] = value
 
         state_dict = new_state_dict
         log.info(
-            f"Mapped {len([k for k in state_dict.keys() if k.startswith('model.')])} keys from 'agent.' to 'model.' prefix"
+            f"Mapped checkpoint keys: {len([k for k in state_dict.keys() if k.startswith('model.')])} model keys"
         )
 
         # Load weights (non-strict to allow for fine-tuning with different architectures)
