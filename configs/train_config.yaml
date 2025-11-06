@@ -32,4 +32,4 @@ wandb:
 pretrained_policy_path: "/hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt"
 
 seed: 42
-device: "cuda"
+device: "cuda:0"

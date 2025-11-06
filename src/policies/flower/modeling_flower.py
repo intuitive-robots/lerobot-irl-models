@@ -565,13 +565,6 @@ class FlowerModel(nn.Module):
         """
         device = self.device
         default_dtype = next(self.parameters()).dtype
-        # Debug: print available keys
-        if not hasattr(self, "_keys_printed"):
-            logger.info(f"Available batch keys: {list(batch.keys())}")
-            self._keys_printed = True
-        image_tensor = batch["observation.images.right_cam"]
-
-        print(batch["task"])
         # Handle both 4D [B, C, H, W] and 5D [B, T, C, H, W] image tensors
         if len(image_tensor.shape) == 4:
             # Shape is [B, C, H, W], add temporal dimension
