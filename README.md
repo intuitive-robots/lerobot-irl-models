@@ -4,11 +4,6 @@
 ```bash
 conda create --name lerobot-irl-models python=3.10
 conda activate lerobot-irl-models
-
-conda install black isort pre-commit -c conda-forge
-
-pre-commit install
-pre-commit run
 pip install -r requirements.txt
 ```
 
