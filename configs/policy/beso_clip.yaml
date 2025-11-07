@@ -1,0 +1,42 @@
+# BESO Policy Configuration with CLIP Encoder
+
+# Vision Encoder: Use CLIP instead of ResNet
+use_clip_encoder: true
+clip_model_name: "openai/clip-vit-base-patch32"  # Options: clip-vit-base-patch32, clip-vit-base-patch16, clip-vit-large-patch14
+clip_feature_dim: 512  # 512 for base, 768 for large
+freeze_clip: true  # Set to false if you want to finetune CLIP
+
+# Language Conditioning (optional)
+use_language_conditioning: false  # Set to true to enable language instructions
+language_feature_dim: 512  # Dimension of language features
+max_language_tokens: 77  # Maximum number of tokens for text input
+
+# Standard BESO parameters
+sigma_data: 0.5
+sigma_max: 80.0
+sigma_min: 0.001
+sampling_steps: 8
+sampling_type: "ddim"
+sigma_sample_density_type: "loglogistic"
+embed_dim: 448
+
+# Vision preprocessing (optional)
+crop_shape: null  # e.g., [224, 224] for cropping
+crop_is_random: false
+
+# Diffusion parameters
+horizon: 16
+n_action_steps: 8
+n_obs_steps: 2
+num_inference_steps: null
+do_mask_loss_for_padding: false
+
+# Training parameters
+use_separate_rgb_encoder_per_camera: false
+
+# NOTE: If use_clip_encoder is false, ResNet will be used instead
+# In that case, you need these parameters:
+# vision_backbone: "resnet18"
+# pretrained_backbone_weights: "ResNet18_Weights.IMAGENET1K_V1"
+# use_group_norm: false
+# spatial_softmax_num_keypoints: 32

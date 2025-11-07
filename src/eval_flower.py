@@ -14,6 +14,10 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
+from policies.flower.flower_config import FlowerVLAConfig
+from policies.flower.modeling_flower import FlowerVLAPolicy
+from real_robot_env.real_robot_sim import RealRobot
+
 log = logging.getLogger(__name__)
 
 OmegaConf.register_new_resolver("add", lambda *numbers: sum(numbers))
@@ -49,25 +53,15 @@ def instantiate_policy(policy_cfg: DictConfig, dataset_stats: dict = None):
     config_dict = OmegaConf.to_container(policy_cfg, resolve=True)
     target = config_dict.pop("_target_")
 
-    if "beso" in target.lower():
-        from src.policies.beso.beso_config import BesoConfig
-        from src.policies.beso.modelling_beso import BesoPolicy
-
-        config = BesoConfig(**config_dict)
-        agent = BesoPolicy(config, dataset_stats=dataset_stats)
-    elif "flower" in target.lower():
-        from src.policies.flower.flower_config import FlowerVLAConfig
-        from src.policies.flower.modeling_flower import FlowerVLAPolicy
-
-        config = FlowerVLAConfig(**config_dict)
-        agent = FlowerVLAPolicy(config)
-    else:
-        raise ValueError(f"Unknown policy type from target: {target}")
+    config = FlowerVLAConfig(**config_dict)
+    agent = FlowerVLAPolicy(config)
 
     return agent, policy_name
 
 
-@hydra.main(config_path="configs", config_name="eval_config.yaml", version_base="1.3")
+@hydra.main(
+    config_path="../configs", config_name="eval_flower_config.yaml", version_base="1.3"
+)
 def main(cfg: DictConfig) -> None:
     set_seed_everywhere(cfg.seed)
 
@@ -162,7 +156,6 @@ def main(cfg: DictConfig) -> None:
     # Initialize environment and start evaluation
     # Import RealRobot here to avoid early import of polymetis/torchcontrol
     log.info("Initializing RealRobot environment...")
-    from src.real_robot_env.real_robot_sim import RealRobot
 
     env_sim = RealRobot(device=cfg.device)
 
