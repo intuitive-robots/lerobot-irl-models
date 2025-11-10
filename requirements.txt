@@ -1,28 +1,20 @@
-# Core dependencies
-#torch>=2.0.0
-torchvision>=0.15.0
-numpy>=1.24.0
-einops>=0.7.0
-torchcontrol
-# Lerobot framework
-lerobot>=0.4.0
+gym==0.26.2
+pynput==1.7.7
+opencv-python==4.9.0.80
+numpy>=1.24.0,<2.0.0 # DOWNGRADE NUMPY FOR COMPATIBILITY WITH CV2 (has to be < 2.0.0)
+zmq
+#gymnasium==0.29.1
 
-# Deep learning and transformers
+einops>=0.7.0
+#lerobot>=0.4.0
 transformers>=4.30.0
 timm>=0.9.0
 torchdiffeq>=0.2.3
-
-# Configuration and logging
 hydra-core>=1.3.0
 omegaconf>=2.3.0
 wandb>=0.15.0
-
-# Robotics and simulation
-gymnasium>=0.28.0
-
-# Utilities
 tqdm>=4.65.0
 pyyaml>=6.0
-
-# pyaudio  # Commented out: requires portaudio system dependency, only needed for real robot audio
+pyaudio
 moviepy
+depthai

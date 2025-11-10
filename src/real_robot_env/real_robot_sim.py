@@ -6,13 +6,13 @@ import einops
 import numpy as np
 import torch
 
+from real_robot_env.base_sim import BaseSim
 from real_robot_env.real_robot_env import RealRobotEnv
 from real_robot_env.robot.hardware_audio import AudioInterface
 from real_robot_env.robot.hardware_depthai import DAICameraType, DepthAI
 from real_robot_env.robot.hardware_franka import ControlType, FrankaArm
 from real_robot_env.robot.hardware_frankahand import FrankaHand
 from real_robot_env.robot.utils.keyboard import KeyManager
-from src.real_robot_env.base_sim import BaseSim
 
 DELTA_T = 0.034
 
@@ -50,7 +50,7 @@ class RealRobot(BaseSim):
         self.cam0 = DepthAI(  # right cam
             device_id="1844301051D9B50F00",
             name="right_cam",  # named orb due to other code dependencies
-            height=126,
+            height=224,
             width=224,
             camera_type=DAICameraType.OAK_D,
         )
@@ -58,7 +58,7 @@ class RealRobot(BaseSim):
         self.cam1 = DepthAI(  # wrist cam
             device_id="1944301061BB782700",
             name="wrist_cam",  # named orb due to other code dependencies
-            height=126,
+            height=224,
             width=224,
             camera_type=DAICameraType.OAK_D_SR,
         )
@@ -103,15 +103,15 @@ class RealRobot(BaseSim):
 
                     obs_dict = {
                         # "front_cam_image": front_cam,
-                        "right_cam_image": right_cam,
-                        "wrist_cam_image": wrist_cam,
-                        "lang_emb": lang_emb,
-                        "robot_states": robot_states,
+                        "observation.images.right_cam": right_cam,
+                        "observation.images.wrist_cam": wrist_cam,
+                        "task": "Grab the ball",
+                        "observation.state": robot_states,
                     }
 
                     pred_action = agent.select_action(obs_dict).cpu().numpy()
-                    pred_joint_pos = pred_action[:7]
-                    pred_gripper_command = pred_action[-1]
+                    pred_joint_pos = pred_action[0, :7]
+                    pred_gripper_command = pred_action[0, -1]
                     pred_gripper_command = 1 if pred_gripper_command > 0 else -1
 
                     action = {
