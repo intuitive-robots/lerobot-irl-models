@@ -188,7 +188,9 @@ def train(cfg: DictConfig) -> None:
     log.info("Training completed!")
 
 
-@hydra.main(config_path="../configs", config_name="train_config", version_base="1.3")
+@hydra.main(
+    config_path="../configs", config_name="train_flower_config", version_base="1.3"
+)
 def main(cfg: DictConfig) -> None:
     """Main entry point for training with Hydra configuration."""
     # Set seed if specified
