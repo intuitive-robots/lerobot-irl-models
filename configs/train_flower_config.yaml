@@ -19,15 +19,14 @@ dataset:
 
 training:
   batch_size: 4
-  steps: 60
+  steps: 30000
   save_freq: 20000
   log_freq: 100
 
 wandb:
-  enable: false
   project: "flower-finetuning"
-  entity: null
-  mode: "disabled"
+  entity: j-p-suliga-kit
+  mode: "online"  # Change to "offline" to log locally
 
 pretrained_policy_path: "/hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt"
 
