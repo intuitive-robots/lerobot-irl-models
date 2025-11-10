@@ -49,4 +49,3 @@ pip install -r requirements.txt
 - [] Proper README
 - [] Add Trainer and Agent System for only one train script
 - [] Check Flower Processor for unnecessary parts and wrong implementations
-- [] Set for everything random seed

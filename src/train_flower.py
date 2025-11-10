@@ -1,10 +1,13 @@
 import importlib
 import logging
 import os
+import random
 import sys
 from pathlib import Path
+from random import random
 
 import hydra
+import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 
@@ -123,6 +126,7 @@ def train(cfg: DictConfig) -> None:
 
     wandb_cfg = WandBConfig(
         enable=cfg.wandb.enable,
+        project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         mode=cfg.wandb.mode,
     )
@@ -197,6 +201,8 @@ def main(cfg: DictConfig) -> None:
         torch.manual_seed(cfg.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(cfg.seed)
+        np.random.seed(cfg.seed)
+        random.seed(cfg.seed)
 
     # Override data_dir if provided as command line argument
     if "data_dir" in cfg:

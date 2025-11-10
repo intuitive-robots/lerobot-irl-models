@@ -150,32 +150,15 @@ class BesoModel(nn.Module):
         # Build observation encoders (depending on which observations are provided).
         global_cond_dim = self.config.robot_state_feature.shape[0]
 
-        # Use either CLIP or ResNet, not both
         if self.config.image_features:
             num_images = len(self.config.image_features)
-
-            if self.config.use_clip_encoder:
-                # Use CLIP encoder
-                if self.config.use_separate_rgb_encoder_per_camera:
-                    encoders = [BesoClipEncoder(config) for _ in range(num_images)]
-                    self.rgb_encoder = nn.ModuleList(encoders)
-                    global_cond_dim += encoders[0].feature_dim * num_images
-                else:
-                    self.rgb_encoder = BesoClipEncoder(config)
-                    global_cond_dim += self.rgb_encoder.feature_dim * num_images
+            if self.config.use_separate_rgb_encoder_per_camera:
+                encoders = [BesoRgbEncoder(config) for _ in range(num_images)]
+                self.rgb_encoder = nn.ModuleList(encoders)
+                global_cond_dim += encoders[0].feature_dim * num_images
             else:
-                # Use ResNet encoder
-                if self.config.use_separate_rgb_encoder_per_camera:
-                    encoders = [BesoRgbEncoder(config) for _ in range(num_images)]
-                    self.rgb_encoder = nn.ModuleList(encoders)
-                    global_cond_dim += encoders[0].feature_dim * num_images
-                else:
-                    self.rgb_encoder = BesoRgbEncoder(config)
-                    global_cond_dim += self.rgb_encoder.feature_dim * num_images
-
-        # Add language conditioning dimension if enabled
-        if self.config.use_language_conditioning:
-            global_cond_dim += self.config.language_feature_dim
+                self.rgb_encoder = BesoRgbEncoder(config)
+                global_cond_dim += self.rgb_encoder.feature_dim * num_images
 
         if self.config.env_state_feature:
             global_cond_dim += self.config.env_state_feature.shape[0]
@@ -206,26 +189,21 @@ class BesoModel(nn.Module):
         print("=" * 40)
 
         if hasattr(self, "rgb_encoder"):
-            encoder_type = "CLIP" if self.config.use_clip_encoder else "ResNet"
             if isinstance(self.rgb_encoder, nn.ModuleList):
                 total_encoder_params = sum(
                     count_params(enc) for enc in self.rgb_encoder
                 )
                 single_encoder_params = count_params(self.rgb_encoder[0])
-                print(f"{encoder_type} Encoders (total): {total_encoder_params:,}")
-                print(f"Single {encoder_type} Encoder: {single_encoder_params:,}")
+                print(f"RGB Encoders (total): {total_encoder_params:,}")
+                print(f"Single RGB Encoder: {single_encoder_params:,}")
             else:
                 encoder_params = count_params(self.rgb_encoder)
-                print(f"{encoder_type} Encoder: {encoder_params:,}")
-
+                print(f"RGB Encoder: {encoder_params:,}")
         backbone_params = count_params(self.dit_backbone)
         print(f"Transformer Backbone: {backbone_params:,}")
 
         total_params = count_params(self)
         print(f"Total Parameters: {total_params:,}")
-
-        if self.config.use_language_conditioning:
-            print(f"Language Conditioning: Enabled")
 
         print("=" * 40)
 
@@ -276,7 +254,6 @@ class BesoModel(nn.Module):
         # 2) images -> encoder -> concat cameras
         img_features = None
         if self.config.image_features:
-            # Use single encoder (either CLIP or ResNet)
             if self.config.use_separate_rgb_encoder_per_camera:
                 images_per_camera = einops.rearrange(
                     batch["observation.images"], "b s n ... -> n (b s) ..."
@@ -310,26 +287,6 @@ class BesoModel(nn.Module):
                     n=num_cameras,
                 )
             global_cond_feats.append(img_features)
-
-        # 3) language conditioning (if enabled and provided in batch)
-        if self.config.use_language_conditioning and "language" in batch:
-            # If using CLIP encoder, it can also encode language
-            if self.config.use_clip_encoder and hasattr(
-                self.rgb_encoder, "encode_text"
-            ):
-                language_features = self.rgb_encoder.encode_text(batch["language"])
-            else:
-                # Otherwise, language should be pre-encoded or use a separate encoder
-                language_features = batch["language"]
-
-            # Expand language features to match observation sequence length
-            # (B, lang_dim) -> (B, S, lang_dim)
-            if len(language_features.shape) == 2:
-                language_features = language_features.unsqueeze(1).expand(
-                    -1, n_obs_steps, -1
-                )
-
-            global_cond_feats.append(language_features)
 
         if self.config.env_state_feature:
             global_cond_feats.append(batch[OBS_ENV_STATE])
@@ -563,137 +520,6 @@ class BesoRgbEncoder(nn.Module):
         # Final linear layer with non-linearity.
         x = self.relu(self.out(x))
         return x
-
-
-class BesoClipEncoder(nn.Module):
-    """Encodes RGB images and optionally text into feature vectors using CLIP.
-
-    This encoder uses the full CLIP model which supports both vision and text encoding.
-    """
-
-    def __init__(self, config: BesoConfig):
-        super().__init__()
-        self.config = config
-
-        # Load full CLIP model (supports both vision and text)
-        self.clip_model = CLIPModel.from_pretrained(config.clip_model_name)
-        self.clip_processor = CLIPProcessor.from_pretrained(config.clip_model_name)
-
-        # Freeze CLIP weights if specified
-        if config.freeze_clip:
-            for param in self.clip_model.parameters():
-                param.requires_grad = False
-
-        # CLIP outputs config.clip_feature_dim dimensional features
-        self.feature_dim = config.clip_feature_dim
-
-        # Optional projection layer for vision features
-        self.vision_projection = nn.Sequential(
-            nn.Linear(config.clip_feature_dim, config.clip_feature_dim),
-            nn.ReLU(),
-            nn.Linear(config.clip_feature_dim, self.feature_dim),
-        )
-
-        # Optional projection layer for text features (if language conditioning is used)
-        if config.use_language_conditioning:
-            self.text_projection = nn.Sequential(
-                nn.Linear(config.clip_feature_dim, config.language_feature_dim),
-                nn.ReLU(),
-                nn.Linear(config.language_feature_dim, config.language_feature_dim),
-            )
-
-        # Store image preprocessing parameters
-        self.do_crop = config.crop_shape is not None
-        if self.do_crop:
-            self.center_crop = torchvision.transforms.CenterCrop(config.crop_shape)
-            if config.crop_is_random:
-                self.maybe_random_crop = torchvision.transforms.RandomCrop(
-                    config.crop_shape
-                )
-            else:
-                self.maybe_random_crop = self.center_crop
-
-    def forward(self, x: Tensor) -> Tensor:
-        """
-        Encode images using CLIP vision encoder.
-
-        Args:
-            x: (B, C, H, W) image tensor with pixel values in [0, 1].
-        Returns:
-            (B, D) image feature.
-        """
-        # Optional cropping
-        if self.do_crop:
-            x = F.interpolate(x, size=(256, 256), mode="bilinear", align_corners=False)
-            if self.training:
-                x = self.maybe_random_crop(x)
-            else:
-                x = self.center_crop(x)
-
-        # Resize to CLIP's expected input size (224x224 for most CLIP models)
-        x = F.interpolate(x, size=(224, 224), mode="bilinear", align_corners=False)
-
-        # CLIP preprocessing: normalize with CLIP's mean and std
-        mean = torch.tensor([0.48145466, 0.4578275, 0.40821073], device=x.device).view(
-            1, 3, 1, 1
-        )
-        std = torch.tensor([0.26862954, 0.26130258, 0.27577711], device=x.device).view(
-            1, 3, 1, 1
-        )
-        x = (x - mean) / std
-
-        # Forward through CLIP vision encoder
-        vision_outputs = self.clip_model.vision_model(pixel_values=x)
-
-        # Get the pooled output (CLS token representation)
-        image_features = vision_outputs.pooler_output  # (B, feature_dim)
-
-        # Apply projection to match expected feature dimension
-        image_features = self.vision_projection(image_features)
-
-        return image_features
-
-    def encode_text(self, text_inputs: list[str] | Tensor) -> Tensor:
-        """
-        Encode text using CLIP text encoder.
-
-        Args:
-            text_inputs: Either a list of strings or tokenized text tensor.
-        Returns:
-            (B, language_feature_dim) text features.
-        """
-        if not self.config.use_language_conditioning:
-            raise ValueError("Language conditioning is not enabled in config!")
-
-        # Tokenize text if it's a list of strings
-        if isinstance(text_inputs, list):
-            # Use CLIP processor to tokenize text
-            inputs = self.clip_processor(
-                text=text_inputs,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.config.max_language_tokens,
-            )
-            input_ids = inputs["input_ids"].to(self.clip_model.device)
-            attention_mask = inputs["attention_mask"].to(self.clip_model.device)
-        else:
-            # Assume it's already tokenized
-            input_ids = text_inputs
-            attention_mask = None
-
-        # Forward through CLIP text encoder
-        text_outputs = self.clip_model.text_model(
-            input_ids=input_ids, attention_mask=attention_mask
-        )
-
-        # Get the pooled output (EOS token representation)
-        text_features = text_outputs.pooler_output  # (B, feature_dim)
-
-        # Apply projection
-        text_features = self.text_projection(text_features)
-
-        return text_features
 
 
 def _replace_submodules(

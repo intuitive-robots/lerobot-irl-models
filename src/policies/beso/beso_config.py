@@ -13,15 +13,6 @@ class BesoConfig(DiffusionConfig):
         sampling_steps: int = 8,
         sampling_type: str = "ddim",
         sigma_sample_density_type: str = "loglogistic",
-        # CLIP specific parameters
-        use_clip_encoder: bool = False,
-        clip_model_name: str = "openai/clip-vit-base-patch32",
-        clip_feature_dim: int = 512,
-        freeze_clip: bool = True,
-        # Language conditioning parameters
-        use_language_conditioning: bool = False,
-        language_feature_dim: int = 512,
-        max_language_tokens: int = 77,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -33,14 +24,3 @@ class BesoConfig(DiffusionConfig):
         self.sampling_steps = sampling_steps
         self.sampling_type = sampling_type
         self.sigma_sample_density_type = sigma_sample_density_type
-
-        # CLIP parameters (either CLIP or ResNet, not both)
-        self.use_clip_encoder = use_clip_encoder
-        self.clip_model_name = clip_model_name
-        self.clip_feature_dim = clip_feature_dim
-        self.freeze_clip = freeze_clip
-
-        # Language conditioning parameters
-        self.use_language_conditioning = use_language_conditioning
-        self.language_feature_dim = language_feature_dim
-        self.max_language_tokens = max_language_tokens
