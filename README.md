@@ -42,3 +42,11 @@ A simple BESO policy implementation for LeRobot.
 
 # 2. Dann die anderen requirements installieren
 pip install -r requirements.txt
+
+#TODO
+- [] Add PI_0 Model
+- [] Clip Encoder for BESO
+- [] Proper README
+- [] Add Trainer and Agent System for only one train script
+- [] Check Flower Processor for unnecessary parts and wrong implementations
+- [] Set for everything random seed
