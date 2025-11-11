@@ -12,10 +12,10 @@ policy:
   n_obs_steps: 1
   act_window_size: 20
   multistep: 20
-  input_normalization_modes:
-    observation.state: "min_max"
-  output_normalization_modes:
-    action: "min_max"
+  # input_normalization_modes:
+  #   observation.state: "min_max"
+  # output_normalization_modes:
+  #   action: "min_max"
 
 dataset:
   repo_id: "trickandtreat_lerobot"
