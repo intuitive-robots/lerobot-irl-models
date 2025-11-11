@@ -91,18 +91,28 @@ def main(cfg: DictConfig) -> None:
     # Load pretrained model if checkpoint path provided
     if hasattr(cfg, "checkpoint_path") and cfg.checkpoint_path:
         log.info(f"Loading pretrained model from {cfg.checkpoint_path}")
-        checkpoint = torch.load(cfg.checkpoint_path, map_location=cfg.device)
 
-        # If checkpoint is a dict with 'model' or 'state_dict' key, extract it
-        if isinstance(checkpoint, dict):
-            if "model" in checkpoint:
-                state_dict = checkpoint["model"]
-            elif "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
+        # Check if it's a safetensors file
+        if cfg.checkpoint_path.endswith(".safetensors"):
+            from safetensors.torch import load_file
+
+            state_dict = load_file(cfg.checkpoint_path, device=str(cfg.device))
+        else:
+            # Load pickle format (.pt, .pth)
+            checkpoint = torch.load(
+                cfg.checkpoint_path, map_location=cfg.device, weights_only=False
+            )
+
+            # If checkpoint is a dict with 'model' or 'state_dict' key, extract it
+            if isinstance(checkpoint, dict):
+                if "model" in checkpoint:
+                    state_dict = checkpoint["model"]
+                elif "state_dict" in checkpoint:
+                    state_dict = checkpoint["state_dict"]
+                else:
+                    state_dict = checkpoint
             else:
                 state_dict = checkpoint
-        else:
-            state_dict = checkpoint
 
         # Fix key naming: remove 'agent.' prefix if present and replace with 'model.'
         # This handles checkpoints saved with different wrapper prefixes

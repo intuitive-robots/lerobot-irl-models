@@ -1,0 +1,32 @@
+# Training configuration for Pi0 policy
+# @package _global_
+
+defaults:
+  - policy: pi0
+
+# Seed for reproducibility
+seed: 42
+
+# Dataset configuration
+dataset:
+  repo_id: "my_pi0_dataset"
+  root: "/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot"  # Override with --data_dir or dataset.root=path/to/data
+  video_backend: "pyav"
+
+# Training parameters
+training:
+  batch_size: 64
+  steps: 30000
+  save_freq: 20000
+  log_freq: 100
+
+# WandB logging
+wandb:
+  enable: true
+  project: "pi0-finetuning"
+  entity: j-p-suliga-kit
+  mode: "online"  # Change to "offline" to log locally
+
+
+# Device
+device: cuda

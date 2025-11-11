@@ -1,0 +1,27 @@
+# Evaluation configuration for Pi0 policy
+# @package _global_
+
+defaults:
+  - policy: pi0
+
+# Seed for reproducibility
+seed: 42
+
+# Device
+device: cuda
+
+# Path to trained model checkpoint (required for evaluation)
+checkpoint_path: null  # Set this via checkpoint_path=/path/to/checkpoint.pt
+
+# Optional: Dataset statistics for normalization
+dataset_stats: null
+
+# WandB logging
+wandb:
+  enable: false
+  project: "pi0_eval"
+  entity: null
+  mode: "disabled"
+
+# Evaluation group
+group: "eval"

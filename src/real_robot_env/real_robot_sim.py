@@ -105,7 +105,7 @@ class RealRobot(BaseSim):
                         # "front_cam_image": front_cam,
                         "observation.images.right_cam": right_cam,
                         "observation.images.wrist_cam": wrist_cam,
-                        "task": "Grab the ball",
+                        "task": "Grab the sweet and put it on the hand",
                         "observation.state": robot_states,
                     }
 
