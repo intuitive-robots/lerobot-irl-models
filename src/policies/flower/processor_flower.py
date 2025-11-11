@@ -93,13 +93,6 @@ def make_flower_pre_post_processors(
         or {}
     )
 
-    # Tokenizer config
-    tokenizer_name = getattr(config, "vlm_path", None) or getattr(
-        config, "vlm_model_name", None
-    )
-    tokenizer_max_length = getattr(config, "tokenizer_max_length", 128)
-    pad_language_to = getattr(config, "pad_language_to", None)
-
     input_steps = [
         RenameObservationsProcessorStep(rename_map={}),
         AddBatchDimensionProcessorStep(),
