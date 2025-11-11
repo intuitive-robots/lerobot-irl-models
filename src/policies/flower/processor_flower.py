@@ -90,7 +90,7 @@ def make_flower_pre_post_processors(
     normalization_mapping = (
         getattr(config, "input_normalization_modes", None)
         or getattr(config, "normalization_mapping", None)
-        or {key: "MIN_MAX" for key in {**input_features, **output_features}}
+        or {"observation": "MIN_MAX", "action": "MIN_MAX"}
     )
 
     input_steps = [
