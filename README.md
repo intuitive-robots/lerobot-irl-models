@@ -28,7 +28,7 @@ pip insall lerobot
 ```
 conda install -c conda-forge ffmpeg
 
-pip install "lerobot[transformers-dep]" --upgrade
+
 
 
 # Models

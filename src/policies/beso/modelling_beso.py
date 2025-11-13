@@ -163,6 +163,22 @@ class BesoModel(nn.Module):
         if self.config.env_state_feature:
             global_cond_dim += self.config.env_state_feature.shape[0]
 
+        # Initialize CLIP text encoder for language instructions
+        if self.config.use_language:
+            self.clip_model = CLIPModel.from_pretrained(self.config.clip_model_name)
+            self.clip_processor = CLIPProcessor.from_pretrained(
+                self.config.clip_model_name
+            )
+
+            # Freeze CLIP if specified
+            if self.config.freeze_clip:
+                for param in self.clip_model.parameters():
+                    param.requires_grad = False
+
+            # Add CLIP text embedding dimension to global conditioning
+            clip_text_dim = self.clip_model.config.text_config.hidden_size
+            global_cond_dim += clip_text_dim
+
         self.dit_backbone = Noise_Dec_only(
             state_dim=global_cond_dim * 2,
             action_dim=self.config.action_feature.shape[0],
@@ -199,6 +215,11 @@ class BesoModel(nn.Module):
             else:
                 encoder_params = count_params(self.rgb_encoder)
                 print(f"RGB Encoder: {encoder_params:,}")
+
+        if hasattr(self, "clip_model"):
+            clip_params = count_params(self.clip_model)
+            print(f"CLIP Text Encoder: {clip_params:,}")
+
         backbone_params = count_params(self.dit_backbone)
         print(f"Transformer Backbone: {backbone_params:,}")
 
@@ -290,6 +311,40 @@ class BesoModel(nn.Module):
 
         if self.config.env_state_feature:
             global_cond_feats.append(batch[OBS_ENV_STATE])
+
+        # 3) language instructions -> CLIP text encoder
+        if self.config.use_language and self.config.language_feature in batch:
+            # Get language instructions from batch
+            # Expecting batch[language_feature] to be a list of strings
+            language_instructions = batch[self.config.language_feature]
+
+            # Handle both list and tensor inputs
+            if isinstance(language_instructions, torch.Tensor):
+                # If it's a tensor, assume it's token IDs and convert to text
+                # For now, we'll skip this case and require string inputs
+                raise ValueError(
+                    "Language instructions must be provided as a list of strings"
+                )
+
+            # Process text with CLIP
+            device = get_device_from_parameters(self)
+            with torch.no_grad() if self.config.freeze_clip else torch.enable_grad():
+                # Tokenize and encode text
+                text_inputs = self.clip_processor(
+                    text=language_instructions,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                ).to(device)
+
+                # Get text features from CLIP
+                text_outputs = self.clip_model.get_text_features(**text_inputs)
+                # text_outputs shape: (batch_size, clip_text_dim)
+
+                # Expand to match observation steps and add to conditioning
+                # Shape: (B, S, clip_text_dim)
+                text_features = text_outputs.unsqueeze(1).expand(-1, n_obs_steps, -1)
+                global_cond_feats.append(text_features)
 
         feats = torch.cat(global_cond_feats, dim=-1).flatten(start_dim=1).unsqueeze(1)
 

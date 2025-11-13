@@ -19,10 +19,11 @@ policy:
 
 dataset:
   repo_id: "trickandtreat_lerobot"
-  root: "/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot"
+  root: "/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot" # "/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot" #"/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot"
+
 
 training:
-  batch_size: 64
+  batch_size: 1
   steps: 30000
   save_freq: 20000
   log_freq: 100
@@ -33,7 +34,7 @@ wandb:
   entity: j-p-suliga-kit
   mode: "online"  # Change to "offline" to log locally
 
-pretrained_policy_path: "/hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt"
+pretrained_policy_path: "/home/multimodallearning/Downloads/360000_model_weight.pt" #"/hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt"
 
 seed: 42
 device: "cuda"

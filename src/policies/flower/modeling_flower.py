@@ -172,8 +172,8 @@ class FlowerVLAPolicy(PreTrainedPolicy):
             action = self.model.pred_action_seq
         else:
             # Return single action at current step
-            action = self.model.pred_action_seq
-            # action = self.model.pred_action_seq[:, self.model.rollout_step_counter, :]
+            # action = self.model.pred_action_seq
+            action = self.model.pred_action_seq[:, self.model.rollout_step_counter, :]
 
         # Update counter
         self.model.rollout_step_counter += 1
