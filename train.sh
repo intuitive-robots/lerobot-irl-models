@@ -1,19 +1,26 @@
 #!/bin/bash
-#SBATCH -p accelerated               # Partition
-#SBATCH --gres=gpu:4                 # 4 GPUs anfordern
-#SBATCH --mem=64G                    # RAM
-#SBATCH --time=6:00:00               # Maximale Laufzeit
-#SBATCH -J train_flower              # Jobname
-#SBATCH -o logs/%x_%j.out            # STDOUT-Log
-#SBATCH -e logs/%x_%j.err            # STDERR-Log
+#SBATCH -p accelerated
+#SBATCH --gres=gpu:4
+#SBATCH --mem=64G
+#SBATCH --time=6:00:00
+#SBATCH -J train_flower
+#SBATCH -o logs/%x_%j.out
+#SBATCH -e logs/%x_%j.err
 
-# Umgebung vorbereiten
 source ~/.bashrc
 conda activate lerobot-irl-models
 
-export HYDRA_FULL_ERROR=1
+# HuggingFace fix
 export TOKENIZERS_PARALLELISM=false
-torchrun --nproc_per_node=4 src/train_flower.py
 
-# Alternative Option, falls torchrun nicht passt:
-# python -m torch.distributed.launch --nproc_per_node=4 src/train_flower.py
+# NCCL optimizations for HoreKa
+export NCCL_DEBUG=INFO
+export NCCL_IB_DISABLE=0
+export NCCL_P2P_DISABLE=0
+export NCCL_SOCKET_IFNAME=ib0
+export OMP_NUM_THREADS=8
+
+export HYDRA_FULL_ERROR=1
+
+# Start training
+torchrun --standalone --nproc_per_node=4 src/train_flower.py
