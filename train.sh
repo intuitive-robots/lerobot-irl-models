@@ -11,8 +11,7 @@ source ~/.bashrc
 conda activate lerobot-irl-models
 
 # HuggingFace fix
-#export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
 
 # Start training
-torchrun --nproc_per_node=4 src/train_flower.py
+python src/train_flower.py

@@ -10,7 +10,7 @@ seed: 42
 device: cuda
 
 # Checkpoint path - set this to your trained model checkpoint
-checkpoint_path: /home/multimodallearning/model_wei/checkpoints/last/pretrained_model/model.safetensors  # e.g., "/path/to/model/checkpoint.pth"
+checkpoint_path: /hkfs/work/workspace/scratch/uhtfz-flower/lerobot-irl-models/outputs/train/2025-11-14/08-35-46_flower/checkpoints/020000/pretrained_model/model.safetensors  # e.g., "/path/to/model/checkpoint.pth"
 
 # WandB logging
 wandb:

@@ -180,7 +180,7 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     # 4. Find all data directories and setup paths
     # ---------------------------------------------------------------------
-    base_data_dir = Path("/home/multimodallearning/data_collected/flower/trickandtreat")
+    base_data_dir = Path("/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot")
     data_dirs = sorted([d for d in base_data_dir.iterdir() if d.is_dir()])
     log.info(f"Found {len(data_dirs)} data directories to process")
 

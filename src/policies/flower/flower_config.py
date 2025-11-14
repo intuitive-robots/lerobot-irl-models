@@ -4,7 +4,7 @@ from typing import Dict, List
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.optim.optimizers import AdamWConfig
 from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
-
+from lerobot.configs.types import NormalizationMode, PolicyFeature
 
 @PreTrainedConfig.register_subclass("flower")
 @dataclass
@@ -65,7 +65,15 @@ class FlowerVLAConfig(PreTrainedConfig):
     # LeRobot compatibility
     input_shapes: Dict[str, List[int]] = field(default_factory=dict)
     output_shapes: Dict[str, List[int]] = field(default_factory=dict)
-    input_normalization_modes: Dict[str, str] = field(default_factory=dict)
+    input_features: dict[str, PolicyFeature] = field(default_factory=dict)
+    output_features: dict[str, PolicyFeature] = field(default_factory=dict)
+    normalization_mapping: dict[str, NormalizationMode] = field(
+        default_factory=lambda: {
+            "VISUAL": NormalizationMode.MEAN_STD,
+            "STATE": NormalizationMode.MIN_MAX,
+            "ACTION": NormalizationMode.MIN_MAX,
+        }
+    )
     output_normalization_modes: Dict[str, str] = field(default_factory=dict)
 
     # Additional features
