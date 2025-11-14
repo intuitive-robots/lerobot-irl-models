@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from lerobot.configs.policies import PreTrainedConfig
-from lerobot.configs.types import NormalizationMode, PolicyFeature
+from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
 from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
 from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
@@ -20,6 +20,26 @@ class FlowerVLAConfig(SmolVLAConfig):
         self.target_modality = "action"
         self.lang_modalities = ["language_instruction"]
         self.img_modalities = ["image_primary"]
+        
+        # Define input and output features for normalization
+        self.input_features = {
+            "observation.images.right_cam": PolicyFeature(
+                type=FeatureType.VISUAL, shape=(3, 256, 256)
+            ),
+            "observation.images.wrist_cam": PolicyFeature(
+                type=FeatureType.VISUAL, shape=(3, 256, 256)
+            ),
+            "observation.state": PolicyFeature(type=FeatureType.STATE, shape=(7,)),
+        }
+        self.output_features = {
+            "action": PolicyFeature(type=FeatureType.ACTION, shape=(8,)),
+        }
+        
+        self.normalization_mapping = {
+            FeatureType.STATE: NormalizationMode.MEAN_STD,
+            FeatureType.ACTION: NormalizationMode.MEAN_STD,
+        }
+        
         # VLM configuration
         self.vlm_path: str = "microsoft/Florence-2-large"
         self.freeze_florence: bool = True

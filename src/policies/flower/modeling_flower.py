@@ -59,6 +59,11 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         """
         super().__init__(config)
 
+        # If dataset_stats not provided, try to get from config
+        if dataset_stats is None and hasattr(config, '_dataset_stats'):
+            dataset_stats = config._dataset_stats
+            logger.info("📊 Using dataset_stats from config")
+
         config.validate_features()
         self.config = config
         self.normalize_inputs = NormalizerProcessorStep(
@@ -85,10 +90,7 @@ class FlowerVLAPolicy(PreTrainedPolicy):
 
         Returns:
             Tuple of (loss tensor, output dictionary with metrics)
-        """
-        batch = self.normalize_inputs(batch)
-        batch = self.normalize_targets(batch)
-        # Delegate to model
+        """     
         result = self.model.forward(batch)
         return result["loss"], result["loss_dict"]
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p accelerated
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 #SBATCH --mem=64G
 #SBATCH --time=6:00:00
 #SBATCH -J train_flower
@@ -14,4 +14,4 @@ conda activate lerobot-irl-models
 export HYDRA_FULL_ERROR=1
 
 # Start training
-python src/train_flower.py
+python src/train_flower2.py
