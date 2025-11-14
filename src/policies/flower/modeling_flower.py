@@ -20,6 +20,11 @@ from .transformers import (
     ZeroEncoder,
     stateless_norm,
 )
+from lerobot.processor.normalize_processor import (
+    NormalizerProcessorStep,
+    UnnormalizerProcessorStep,
+)
+from lerobot.utils.constants import ACTION
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +49,7 @@ class FlowerVLAPolicy(PreTrainedPolicy):
     def __init__(
         self,
         config: FlowerVLAConfig,
+        dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None,
     ):
         """
         Initialize FlowerVLA Policy.
@@ -55,6 +61,15 @@ class FlowerVLAPolicy(PreTrainedPolicy):
 
         config.validate_features()
         self.config = config
+        self.normalize_inputs = NormalizerProcessorStep(
+            config.input_features, config.normalization_mapping, dataset_stats
+        )
+        self.normalize_targets = NormalizerProcessorStep(
+            config.output_features, config.normalization_mapping, dataset_stats
+        )
+        self.unnormalize_outputs = UnnormalizerProcessorStep(
+            config.output_features, config.normalization_mapping, dataset_stats
+        )
         self.model = FlowerModel(config)
 
         self.model.reset()
@@ -71,6 +86,8 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         Returns:
             Tuple of (loss tensor, output dictionary with metrics)
         """
+        batch = self.normalize_inputs(batch)
+        batch = self.normalize_targets(batch)
         # Delegate to model
         result = self.model.forward(batch)
         return result["loss"], result["loss_dict"]
@@ -137,7 +154,7 @@ class FlowerVLAPolicy(PreTrainedPolicy):
 
         # Sample actions
         action_seq = self.model.sample_actions(noise, cond, inference=True)
-
+        action_seq = self.unnormalize_outputs({ACTION: action_seq})[ACTION]
         return action_seq  # [B, T, action_dim]
 
     def reset(self) -> None:
@@ -158,6 +175,9 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         Returns:
             Selected action [B, action_dim]
         """
+        if ACTION in batch:
+            batch.pop(ACTION)
+        batch = self.normalize_inputs(batch)
         # Check if we need to predict a new action chunk
         if (
             self.model.rollout_step_counter % self.config.multistep == 0
