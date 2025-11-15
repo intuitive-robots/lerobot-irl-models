@@ -10,7 +10,7 @@
 source ~/.bashrc
 conda activate lerobot-irl-models
 
-# HuggingFace fix
+export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
 
 # Start training
