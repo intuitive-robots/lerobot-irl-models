@@ -15,6 +15,6 @@ export HYDRA_FULL_ERROR=1
 
 # Start training
 accelerate launch --main_process_port 29500 \
-    src/train_flower2.py
+    src/train_flower3.py
 
 
