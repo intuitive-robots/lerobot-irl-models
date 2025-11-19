@@ -1,7 +1,7 @@
 
 repo_id: "your_repo_id"
 dataset_path: "/path/to/your/dataset"
-push_to_hub: false
+
 checkpoint_path: /home/multimodallearning/model_wei/020000/pretrained_model/model.safetensors
 stats_path: /path/to/your/dataset/stats.json # for evaluation
 train:
@@ -10,11 +10,14 @@ train:
   save_freq: 4000
   seed: 42
   device: cuda
+  num_workers: 2
   log_freq: 100
   dtype: bfloat16
   output_dir: "./output/model"
   job_name: "model_training"
   gradient_checkpointing: true
+  compile_model: false
+  push_to_hub: false
   wandb:
     enable: false
     project: "lerobot-pi0-training"

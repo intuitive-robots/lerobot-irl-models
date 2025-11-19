@@ -21,16 +21,13 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 log = logging.getLogger(__name__)
 
-
 @hydra.main(
-    config_path=None,
-    config_name=None,
-    version_base="1.3",
+    config_path="../configs", config_name="config", version_base="1.3"
 )
-def train(_cfg):
+def train(cfg):
     dataset_cfg = DatasetConfig(
-        repo_id="your_dataset_id",
-        root="/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot",
+        repo_id=cfg.repo_id,
+        root=cfg.dataset_path,
         video_backend="pyav",
     )
 
@@ -51,12 +48,12 @@ def train(_cfg):
 
     policy_cfg = GrootConfig(
         pretrained_path="lerobot/groot",  
-        repo_id="your_repo_id",
-        compile_model=True,
-        dtype="bfloat16",
-        device="cuda",
-        push_to_hub=False,
-        tune_diffusion_model=False, 
+        repo_id=cfg.repo_id,
+        compile_model=cfg.train.compile_model,
+        dtype=cfg.train.dtype,
+        device=cfg.train.device,
+        push_to_hub=cfg.train.push_to_hub,
+        gradient_checkpointing=cfg.train.gradient_checkpointing,
         input_features={
             "observation.images.right_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
             "observation.images.wrist_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
@@ -70,15 +67,20 @@ def train(_cfg):
     train_cfg = TrainPipelineConfig(
         policy=policy_cfg,
         dataset=dataset_cfg,
-        output_dir="./outputs/groot_training",
-        job_name="groot_training",  
-        batch_size=32,
-        steps=3000,
-        save_freq=5000,     
-        log_freq=100,       
-        save_checkpoint=True,
-        seed=42,
-        wandb=get_wandb_config()
+        output_dir=cfg.train.output_dir,
+        job_name=cfg.train.job_name,
+        batch_size=cfg.train.batch_size,
+        num_workers=cfg.train.num_workers,
+        steps=cfg.train.steps,
+        save_freq=cfg.train.save_freq,
+        seed=cfg.train.seed,
+        log_freq=cfg.train.log_freq,
+        wandb=WandBConfig(
+        enable=cfg.wandb.enable,
+        project=cfg.wandb.project,
+        entity=cfg.wandb.entity,
+        mode=cfg.wandb.mode,
+        ),
     )
 
     init_logging()
@@ -86,13 +88,6 @@ def train(_cfg):
 
 def get_groot_policy(typename: str, **kwargs):
     return GrootPolicy
-
-def get_wandb_config():
-    return WandBConfig(
-        enable=False,
-        project="groot_lerobot",
-        mode="disabled",
-    )
 
 if __name__ == "__main__":
     factory.get_policy_class = get_groot_policy
