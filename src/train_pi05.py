@@ -7,14 +7,13 @@ import hydra
 from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.policies import factory
-from lerobot.policies.pi0.configuration_pi0 import PI0Config
-from lerobot.policies.pi0.modeling_pi0 import PI0Policy
+from lerobot.policies.pi05.configuration_pi05 import PI05Config
+from lerobot.policies.pi05.modeling_pi05 import PI05Policy
 from lerobot.utils.utils import init_logging
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.policies.utils import PolicyFeature
 from lerobot.policies.utils import FeatureType
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from sympy import true
 # Wichtig: Video-Backend auf pyav setzen, da torchcodec Probleme hat
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
@@ -30,7 +29,7 @@ log = logging.getLogger(__name__)
 )
 def train(_cfg):
     dataset_cfg = DatasetConfig(
-        repo_id="my_dataset",
+        repo_id="your_dataset",
         root="/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot",
         video_backend="pyav",
     )
@@ -50,8 +49,8 @@ def train(_cfg):
     print(f"State shape: {state_shape}")
     print(f"Action shape: {action_shape}")
 
-    pi0_cfg = PI0Config(
-        pretrained_path="lerobot/pi0_base",
+    pi05_cfg = PI05Config(
+        pretrained_path="lerobot/pi05_base",
         repo_id="your_repo_id",
         compile_model=True,
         dtype="bfloat16",
@@ -69,13 +68,13 @@ def train(_cfg):
     )
 
     train_cfg = TrainPipelineConfig(
-        policy=pi0_cfg,
+        policy=pi05_cfg,
         dataset=dataset_cfg,
-        output_dir="./outputs/pi0_training",
-        job_name="pi0_training",
-        batch_size=16,
-        steps=60000,
-        save_freq=2000,
+        output_dir="./outputs/pi05_training",
+        job_name="pi05_training",
+        batch_size=4,
+        steps=3000,
+        save_freq=5000,
         seed=42,
         log_freq=100,
         wandb=get_wandb_config()
@@ -84,16 +83,16 @@ def train(_cfg):
     init_logging()
     lerobot_train(train_cfg)
 
-def get_pi0_policy(typename: str, **kwargs):
-    return PI0Policy
+def get_pi05_policy(typename: str, **kwargs):
+    return PI05Policy
 
 def get_wandb_config():
     return WandBConfig(
         enable=True,
-        project="pi0_lerobot",
+        project="pi05_lerobot",
         mode="online",
     )
 
 if __name__ == "__main__":
-    factory.get_policy_class = get_pi0_policy
+    factory.get_policy_class = get_pi05_policy
     train()

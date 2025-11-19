@@ -7,14 +7,14 @@ import hydra
 from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.policies import factory
-from lerobot.policies.pi0.configuration_pi0 import PI0Config
-from lerobot.policies.pi0.modeling_pi0 import PI0Policy
+from lerobot.policies.groot.configuration_groot import GrootConfig
+from lerobot.policies.groot.modeling_groot import GrootPolicy
 from lerobot.utils.utils import init_logging
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.policies.utils import PolicyFeature
 from lerobot.policies.utils import FeatureType
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from sympy import true
+
 # Wichtig: Video-Backend auf pyav setzen, da torchcodec Probleme hat
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 )
 def train(_cfg):
     dataset_cfg = DatasetConfig(
-        repo_id="my_dataset",
+        repo_id="your_dataset_id",
         root="/hkfs/work/workspace/scratch/uhtfz-flower/trickandtreat_lerobot",
         video_backend="pyav",
     )
@@ -50,14 +50,14 @@ def train(_cfg):
     print(f"State shape: {state_shape}")
     print(f"Action shape: {action_shape}")
 
-    pi0_cfg = PI0Config(
-        pretrained_path="lerobot/pi0_base",
+    policy_cfg = GrootConfig(
+        pretrained_path="lerobot/groot",  
         repo_id="your_repo_id",
         compile_model=True,
         dtype="bfloat16",
         device="cuda",
         push_to_hub=False,
-        gradient_checkpointing=True,
+        tune_diffusion_model=False, 
         input_features={
             "observation.images.right_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
             "observation.images.wrist_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
@@ -69,31 +69,32 @@ def train(_cfg):
     )
 
     train_cfg = TrainPipelineConfig(
-        policy=pi0_cfg,
+        policy=policy_cfg,
         dataset=dataset_cfg,
-        output_dir="./outputs/pi0_training",
-        job_name="pi0_training",
-        batch_size=16,
-        steps=60000,
-        save_freq=2000,
+        output_dir="./outputs/groot_training",
+        job_name="groot_training",  
+        batch_size=32,
+        steps=3000,
+        save_freq=5000,     
+        log_freq=100,       
+        save_checkpoint=True,
         seed=42,
-        log_freq=100,
         wandb=get_wandb_config()
     )
 
     init_logging()
     lerobot_train(train_cfg)
 
-def get_pi0_policy(typename: str, **kwargs):
-    return PI0Policy
+def get_groot_policy(typename: str, **kwargs):
+    return GrootPolicy
 
 def get_wandb_config():
     return WandBConfig(
-        enable=True,
-        project="pi0_lerobot",
-        mode="online",
+        enable=False,
+        project="groot_lerobot",
+        mode="disabled",
     )
 
 if __name__ == "__main__":
-    factory.get_policy_class = get_pi0_policy
+    factory.get_policy_class = get_groot_policy
     train()
