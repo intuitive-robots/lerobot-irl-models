@@ -14,8 +14,7 @@ from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.policies.utils import PolicyFeature
 from lerobot.policies.utils import FeatureType
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from sympy import true
-# Wichtig: Video-Backend auf pyav setzen, da torchcodec Probleme hat
+
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
 project_root = Path(__file__).parent
@@ -53,7 +52,7 @@ def train(_cfg):
     pi0_cfg = PI0Config(
         pretrained_path="lerobot/pi0_base",
         repo_id="your_repo_id",
-        compile_model=True,
+        compile_model=False,
         dtype="bfloat16",
         device="cuda",
         push_to_hub=False,

@@ -10,10 +10,11 @@ import seaborn as sns
 import torch
 import torchvision.transforms as transforms
 import wandb
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from PIL import Image
 from tqdm import tqdm
 
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from policies.flower.flower_config import FlowerVLAConfig
 from policies.flower.modeling_flower import FlowerVLAPolicy
 
@@ -40,48 +41,6 @@ def move_obs_to_device(obs_dict: dict, device: torch.device) -> dict:
             move_obs_to_device(v, device)
         elif torch.is_tensor(v):
             obs_dict[k] = v.to(device, non_blocking=True)
-    return obs_dict
-
-
-def load_images_from_folder(folder_path: Path) -> list:
-    """Load all images from a folder, sorted by frame number."""
-    image_files = sorted(
-        [f for f in folder_path.glob("*.png")], key=lambda x: int(x.stem)
-    )
-    return image_files
-
-
-def prepare_observation(
-    right_cam_path: Path,
-    wrist_cam_path: Path,
-    robot_state: torch.Tensor,
-    transform,
-    device: torch.device,
-) -> dict:
-    """Prepare observation dictionary from image paths, mimicking eval_flower.py structure."""
-    # Load images
-    right_img = Image.open(right_cam_path).convert("RGB")
-    wrist_img = Image.open(wrist_cam_path).convert("RGB")
-
-    # Apply transforms
-    right_tensor = transform(right_img)
-    wrist_tensor = transform(wrist_img)
-
-    # Create observation dict with batch dimension and temporal dimension
-    # Based on how eval_flower.py structures observations in real_robot_sim.py
-    obs_dict = {
-        "observation.images.right_cam": right_tensor.unsqueeze(0)
-        .unsqueeze(0)
-        .to(device),  # [1, 1, C, H, W]
-        "observation.images.wrist_cam": wrist_tensor.unsqueeze(0)
-        .unsqueeze(0)
-        .to(device),  # [1, 1, C, H, W]
-        "observation.state": robot_state.unsqueeze(0)
-        .unsqueeze(0)
-        .to(device),  # [1, 1, D]
-        "task": "Grab the sweet and put it on the hand",
-    }
-
     return obs_dict
 
 
@@ -211,20 +170,20 @@ def main(cfg: DictConfig) -> None:
     torch.cuda.empty_cache()
 
     # ---------------------------------------------------------------------
-    # 5. Find all data directories and setup paths
+    # 5. Load LeRobot Dataset
     # ---------------------------------------------------------------------
-    base_data_dir = Path("/home/multimodallearning/data_collected/flower/trickandtreat")
-    data_dirs = sorted([d for d in base_data_dir.iterdir() if d.is_dir()])
-    log.info(f"Found {len(data_dirs)} data directories to process")
+    dataset_path = Path("/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot")
+    log.info(f"Loading LeRobot dataset from {dataset_path}")
+    dataset = LeRobotDataset(root=dataset_path)
+    log.info(f"Found {dataset.num_episodes} episodes in dataset")
 
     # Storage for metrics across all episodes
     all_episode_metrics = []
 
-    # Setup image transform (adjust based on your model's requirements)
-    transform = transforms.Compose(
+    # Setup image transform for tensors (LeRobot returns [0,1] float tensors)
+    tensor_transform = transforms.Compose(
         [
-            transforms.Resize((224, 224)),  # Adjust size as needed
-            transforms.ToTensor(),
+            transforms.Resize((224, 224), antialias=True),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
@@ -235,54 +194,21 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     # 6. Process each episode
     # ---------------------------------------------------------------------
-    for episode_idx, data_root in enumerate(data_dirs):
+    for episode_idx in range(dataset.num_episodes):
         log.info(f"\n{'='*80}")
         log.info(
-            f"Processing episode {episode_idx + 1}/{len(data_dirs)}: {data_root.name}"
+            f"Processing episode {episode_idx + 1}/{dataset.num_episodes}"
         )
         log.info(f"{'='*80}")
 
         try:
-            # Setup paths for this episode
-            right_cam_dir = data_root / "sensors" / "right_cam"
-            wrist_cam_dir = data_root / "sensors" / "wrist_cam"
-            gt_actions_path = data_root / "201 leader" / "joint_pos.pt"
-            gt_gripper_path = data_root / "201 leader" / "gripper_state.pt"
-            robot_states_path = data_root / "202 follower" / "joint_pos.pt"
-
-            # Check if all required files exist
-            if not all(
-                [
-                    right_cam_dir.exists(),
-                    wrist_cam_dir.exists(),
-                    gt_actions_path.exists(),
-                    gt_gripper_path.exists(),
-                    robot_states_path.exists(),
-                ]
-            ):
-                log.warning(f"Skipping {data_root.name}: missing required files")
-                continue
-
-            # Load data for this episode
-            gt_actions = torch.load(gt_actions_path)
-            gt_gripper = torch.load(gt_gripper_path)
-            robot_states = torch.load(robot_states_path)
-
-            # Get image files
-            right_cam_files = load_images_from_folder(right_cam_dir)
-            wrist_cam_files = load_images_from_folder(wrist_cam_dir)
-
-            # Ensure we have matching number of images, robot states and actions
-            num_samples = min(
-                len(right_cam_files),
-                len(wrist_cam_files),
-                robot_states.shape[0],
-                gt_actions.shape[0],
-                gt_gripper.shape[0],
-            )
+            # Get episode range
+            from_idx = dataset.episode_data_index["from"][episode_idx].item()
+            to_idx = dataset.episode_data_index["to"][episode_idx].item()
+            num_samples = to_idx - from_idx
 
             if num_samples == 0:
-                log.warning(f"Skipping {data_root.name}: no valid samples")
+                log.warning(f"Skipping episode {episode_idx}: no valid samples")
                 continue
 
             log.info(f"Processing {num_samples} samples from this episode")
@@ -291,18 +217,27 @@ def main(cfg: DictConfig) -> None:
             predicted_actions = []
             predicted_gripper = []
             ground_truth_actions = []
+            ground_truth_gripper = []
 
-            for idx in tqdm(range(num_samples), desc=f"Episode {episode_idx + 1}"):
-                # Prepare observation with robot state
-                obs_dict = prepare_observation(
-                    right_cam_files[idx],
-                    wrist_cam_files[idx],
-                    robot_states[idx],  # Current robot state
-                    transform,
-                    device,
-                )
+            for idx in tqdm(range(from_idx, to_idx), desc=f"Episode {episode_idx + 1}"):
+                item = dataset[idx]
+                
+                # Prepare observation
+                # LeRobotDataset returns images as (C, H, W) float32 in [0, 1]
+                right_cam = item["observation.images.right_cam"]
+                wrist_cam = item["observation.images.wrist_cam"]
+                state = item["observation.state"]
+                task = item["task"]
+                
+                # Apply transforms and move to device
+                obs_dict = {
+                    "observation.images.right_cam": tensor_transform(right_cam).unsqueeze(0).unsqueeze(0).to(device),
+                    "observation.images.wrist_cam": tensor_transform(wrist_cam).unsqueeze(0).unsqueeze(0).to(device),
+                    "observation.state": state.unsqueeze(0).unsqueeze(0).to(device),
+                    "task": task,
+                }
 
-                # Get prediction using select_action method (as in real_robot_sim.py)
+                # Get prediction using select_action method
                 with torch.no_grad():
                     pred_action = agent.select_action(
                         obs_dict
@@ -315,16 +250,17 @@ def main(cfg: DictConfig) -> None:
                     predicted_actions.append(pred_joint_pos.cpu())
                     predicted_gripper.append(pred_gripper_val.cpu())
 
-                # Store ground truth (first 7 dimensions for joint positions)
-                ground_truth_actions.append(
-                    gt_actions[idx : idx + 1, :7]
-                )  # Keep as [1, 7]
+                # Store ground truth
+                # item["action"] is [8] (7 joints + 1 gripper)
+                gt_action = item["action"]
+                ground_truth_actions.append(gt_action[:7].unsqueeze(0))
+                ground_truth_gripper.append(gt_action[7].unsqueeze(0))
 
             # Stack all predictions and ground truth for this episode
             predicted_actions = torch.cat(predicted_actions, dim=0)  # [N, 7]
             predicted_gripper = torch.cat(predicted_gripper, dim=0)  # [N, 1]
             ground_truth_actions = torch.cat(ground_truth_actions, dim=0)  # [N, 7]
-            ground_truth_gripper = gt_gripper[:num_samples]  # [N]
+            ground_truth_gripper = torch.cat(ground_truth_gripper, dim=0)  # [N]
 
             # Compute metrics for this episode
             pred_np = predicted_actions.numpy()
@@ -340,12 +276,24 @@ def main(cfg: DictConfig) -> None:
 
             # Gripper metrics
             pred_discrete = np.where(gripper_np > 0, 1, -1)
-            gripper_accuracy = (pred_discrete == gripper_gt_np).mean()
+            # For GT, it might be 0/1 or -1/1 depending on dataset. 
+            # Assuming standard LeRobot/Robocasa convention, check if it needs thresholding
+            # But usually MSE is enough for continuous gripper, accuracy for discrete.
+            # Let's assume threshold at 0.5 if it's 0/1, or 0 if it's -1/1.
+            # If GT is continuous [0,1], threshold at 0.5.
+            # If GT is [-1, 1], threshold at 0.
+            # Let's infer from data range or just use 0 as threshold if it looks like -1/1
+            if gripper_gt_np.min() >= 0:
+                gt_discrete = np.where(gripper_gt_np > 0.5, 1, -1) # Map 0/1 to -1/1 for comparison
+            else:
+                gt_discrete = np.where(gripper_gt_np > 0, 1, -1)
+                
+            gripper_accuracy = (pred_discrete == gt_discrete).mean()
             gripper_mse = np.mean((gripper_np - gripper_gt_np) ** 2)
 
             # Store metrics for this episode
             episode_metrics = {
-                "episode_name": data_root.name,
+                "episode_name": f"episode_{episode_idx}",
                 "num_samples": num_samples,
                 "overall_mse": overall_mse,
                 "per_dim_mse": per_dim_mse,
@@ -358,13 +306,13 @@ def main(cfg: DictConfig) -> None:
             }
             all_episode_metrics.append(episode_metrics)
 
-            log.info(f"Episode {data_root.name} - Overall MSE: {overall_mse:.6f}")
+            log.info(f"Episode {episode_idx} - Overall MSE: {overall_mse:.6f}")
             log.info(
-                f"Episode {data_root.name} - Gripper Accuracy: {gripper_accuracy*100:.2f}%"
+                f"Episode {episode_idx} - Gripper Accuracy: {gripper_accuracy*100:.2f}%"
             )
 
         except Exception as e:
-            log.error(f"Error processing {data_root.name}: {str(e)}")
+            log.error(f"Error processing episode {episode_idx}: {str(e)}")
             continue
 
     # ---------------------------------------------------------------------

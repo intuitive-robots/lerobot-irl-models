@@ -1,8 +1,0 @@
-# Flower VLA policy configuration for evaluation
-# @package _global_.policy
-
-_target_: src.policies.flower.modeling_flower.FlowerVLAPolicy
-
-action_dim: 8  # 7 joints + 1 gripper
-chunk_size: 32
-n_obs_steps: 2

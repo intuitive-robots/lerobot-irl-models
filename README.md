@@ -1,5 +1,31 @@
 # Implementation of IRL models in LeRobot
 
+# Models
+## Flower Model
+
+
+## Pi0/0.5 Model
+For Training Pi0 model: 
+    1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/pi0
+    2. Change in the config file your settings and train.sh 
+    3. Run the training script: sbatch train.sh
+
+For evaluation:
+
+
+## groot Model
+For Training Pi0 model: 
+    1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/groot
+    2. Change in the config file your settings and train.sh 
+    3. Run the training script: sbatch train.sh
+
+For evaluation:
+
+
+
+
+
+
 Evaluation on real robot:
 
 1. Install Novometis with the commands from real robot and name the env lerobot-irl-models
@@ -27,24 +53,3 @@ pip install -r requirements.txt
 pip insall lerobot
 ```
 conda install -c conda-forge ffmpeg
-
-# Convert your dataset to LeRobot format
-    1. Collect some data
-        a) the parent folder should be named after the language goal
-        b) multitask datasets should be all in one folder eg. path/to/dataset/"language_goal1" and path/to/dataset/"language_goal2"
-    2. Chnage in convert_data_to_lerobot.py in main() the dataset_path to your dataset path and your specific settings
-    3. Run the script: python convert_data_to_lerobot.py
-
-# Models
-## Flower Model
-
-## Pi0/0.5 Model
-
-## groot Model
-
-
-
-
-# 2. Dann die anderen requirements installieren
-pip install -r requirements.txt
-
