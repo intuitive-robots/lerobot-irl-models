@@ -31,16 +31,16 @@ def train(cfg):
         video_backend="pyav",
     )
     pretrained_config = FlowerVLAConfig(push_to_hub=False)
-    train_cfg dataset_cfg,
+    train_cfg = TrainPipelineConfig(
+        policy=pretrained_config,
+        dataset=dataset_cfg,
         batch_size=64,
         steps=40000,
         save_freq=4000,
         seed=42,
         log_freq=100,
         wandb=get_wandb_config(),
-    )= TrainPipelineConfig(
-        policy=pretrained_config,
-        dataset=
+    )
 
     policy = FlowerVLAPolicy(pretrained_config)
     checkpoint = torch.load(

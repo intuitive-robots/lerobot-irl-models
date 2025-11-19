@@ -3,7 +3,7 @@ repo_id: "your_repo_id"
 dataset_path: "/path/to/your/dataset"
 push_to_hub: false
 checkpoint_path: /home/multimodallearning/model_wei/020000/pretrained_model/model.safetensors
-
+stats_path: /path/to/your/dataset/stats.json # for evaluation
 train:
   batch_size: 64
   steps: 40000

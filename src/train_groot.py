@@ -15,7 +15,6 @@ from lerobot.policies.utils import PolicyFeature
 from lerobot.policies.utils import FeatureType
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
-# Wichtig: Video-Backend auf pyav setzen, da torchcodec Probleme hat
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
 project_root = Path(__file__).parent
