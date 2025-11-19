@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p accelerated
 #SBATCH --gres=gpu:4
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --time=15:00:00
 #SBATCH -J train_flower
 #SBATCH -o logs/%x_%j.out

@@ -617,10 +617,8 @@ class FlowerModel(nn.Module):
             image2_features = image2_features.view(B, T * image2_features.shape[1], -1)
             image_features = torch.cat([image_features, image2_features], dim=1)
 
-        # Handle language instruction - batch["task"] is a list of strings
-        # e.g., ['trickandtreat\n', 'trickandtreat\n', ...]
         if "task" in batch:
-            task_text = "Grab the sweet and put it on the hand"  # batch["task"]
+            task_text = batch["task"]
             # task_text is already a list of strings
             if not isinstance(task_text, list):
                 task_text = [task_text] * B
@@ -638,7 +636,6 @@ class FlowerModel(nn.Module):
             ).to(device)
             lang_attention_mask = tokenized["attention_mask"].to(device)
         else:
-            # No language instruction - use empty/dummy text
             dummy_text = [""] * B
             tokenized = self.tokenizer(
                 dummy_text, return_tensors="pt", padding=True, max_length=128
