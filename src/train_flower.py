@@ -41,7 +41,7 @@ def train(cfg):
         dataset=dataset_cfg,
         batch_size=cfg.train.batch_size,
         steps=cfg.train.steps,
-        output_dir=cfg.train.output_dir,
+        output_dir=Path(cfg.train.output_dir),
         job_name=cfg.train.job_name,
         save_freq=cfg.train.save_freq,
         seed=cfg.train.seed,

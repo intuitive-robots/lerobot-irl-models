@@ -12,12 +12,13 @@ train:
   device: cuda
   num_workers: 2
   log_freq: 100
-  dtype: bfloat16
-  output_dir: "./output/model"
+  output_dir: "./output/pi05"
   job_name: "model_training"
+  push_to_hub: false
+  #Only pi0/pi05
   gradient_checkpointing: true
   compile_model: false
-  push_to_hub: false
+  dtype: bfloat16
 
 wandb:
   enable: false

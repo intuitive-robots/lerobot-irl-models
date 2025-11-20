@@ -67,7 +67,7 @@ def train(cfg):
     train_cfg = TrainPipelineConfig(
         policy=pi05_cfg,
         dataset=dataset_cfg,
-        output_dir=cfg.train.output_dir,
+        output_dir=Path(cfg.train.output_dir),
         job_name=cfg.train.job_name,
         batch_size=cfg.train.batch_size,
         num_workers=cfg.train.num_workers,
