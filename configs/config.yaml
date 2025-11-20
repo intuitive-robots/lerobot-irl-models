@@ -1,12 +1,12 @@
 
 repo_id: "your_repo_id"
-dataset_path: "/path/to/your/dataset"
+dataset_path: "/hkfs/work/workspace/scratch/uhtfz-flower/vla_data_lerobot"
 
-checkpoint_path: /home/multimodallearning/model_wei/020000/pretrained_model/model.safetensors
+checkpoint_path: /hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt
 stats_path: /path/to/your/dataset/stats.json # for evaluation
 train:
-  batch_size: 64
-  steps: 40000
+  batch_size: 1
+  steps: 60000
   save_freq: 4000
   seed: 42
   device: cuda
@@ -18,8 +18,9 @@ train:
   gradient_checkpointing: true
   compile_model: false
   push_to_hub: false
-  wandb:
-    enable: false
-    project: "lerobot-pi0-training"
-    entity: "your_wandb_entity"
-    mode: "disabled"
+
+wandb:
+  enable: false
+  project: "lerobot-pi0-training"
+  entity: "your_wandb_entity"
+  mode: "disabled"

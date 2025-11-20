@@ -27,7 +27,7 @@
 
 ## groot Model
 ### For Training groot model: 
-1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/groot
+1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/groot + pip install hydra-core 
 2. Change in the config file your settings and train.sh 
 3. Run the training script: sbatch train.sh
 
