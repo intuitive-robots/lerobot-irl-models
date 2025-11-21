@@ -21,3 +21,23 @@ def create_bidirectional_mask(batch_size, seq_length, device):
     bidirectional_mask = torch.zeros((batch_size, 1, seq_length, seq_length), device=device)
     
     return bidirectional_mask
+
+
+def token_prediction_accuracy(preds: torch.Tensor, targets: torch.Tensor) -> float:
+    """
+    Computes token-level prediction accuracy for a batch.
+
+    Args:
+        logits (torch.Tensor): Model output logits of shape (batch_size, num_classes, seq_len, ...)
+        targets (torch.Tensor): Ground-truth class indices of shape (batch_size, seq_len, ...)
+
+    Returns:
+        float: Accuracy as a percentage (0-100).
+    """
+
+    # Compute accuracy
+    correct = (preds == targets).sum().item()
+    total = targets.numel()  # Total number of tokens
+
+    return 100.0 * correct / total if total > 0 else 0.0  # Return accuracy as percentage
+    

@@ -66,7 +66,7 @@ class UniBSplineBasis(torch.nn.Module):
         # [*add_dim, num_times]
 
         # tau = times[..., -1]
-        tau = times.view(-1)[-1]
+        tau = times.reshape(-1)[-1]
         self.tau.copy_(tau)
         phase = torch.clip(times / self.tau[..., None], 0, 1)
         return phase

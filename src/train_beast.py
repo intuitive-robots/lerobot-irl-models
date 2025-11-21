@@ -32,11 +32,8 @@ def train(cfg):
         video_backend="pyav",
     )
     pretrained_config = BeastVLAConfig(
-        compile_model=cfg.train.compile_model,
-        dtype=cfg.train.dtype,
         device=cfg.train.device,
         push_to_hub=cfg.train.push_to_hub,
-        gradient_checkpointing=cfg.train.gradient_checkpointing
         )
     
     train_cfg = TrainPipelineConfig(
@@ -58,54 +55,54 @@ def train(cfg):
         ),
     )
 
-    policy = FlowerVLAPolicy(pretrained_config)
-    checkpoint = torch.load(
-        cfg.checkpoint_path,
-        map_location="cpu",
-    )
+    policy = BeastVLAPolicy(pretrained_config)
+    # checkpoint = torch.load(
+    #     cfg.checkpoint_path,
+    #     map_location="cpu",
+    # )
 
-    # Handle different checkpoint formats
-    if isinstance(checkpoint, dict):
-        if "model_state_dict" in checkpoint:
-            state_dict = checkpoint["model_state_dict"]
-        elif "state_dict" in checkpoint:
-            state_dict = checkpoint["state_dict"]
-        elif "model" in checkpoint:
-            state_dict = checkpoint["model"]
-        else:
-            state_dict = checkpoint
-    else:
-        state_dict = checkpoint
+    # # Handle different checkpoint formats
+    # if isinstance(checkpoint, dict):
+    #     if "model_state_dict" in checkpoint:
+    #         state_dict = checkpoint["model_state_dict"]
+    #     elif "state_dict" in checkpoint:
+    #         state_dict = checkpoint["state_dict"]
+    #     elif "model" in checkpoint:
+    #         state_dict = checkpoint["model"]
+    #     else:
+    #         state_dict = checkpoint
+    # else:
+    #     state_dict = checkpoint
 
-    new_state_dict = {}
-    for key, value in state_dict.items():
-        new_key = key
-        if new_key.startswith("agent."):
-            new_key = "model." + new_key[6:]
-        new_key = new_key.replace(".mlp.c_fc1.", ".mlp.fc1.")
-        new_key = new_key.replace(".mlp.c_fc2.", ".mlp.fc2.")
-        new_key = new_key.replace(".mlp.c_proj.", ".mlp.proj.")
+    # new_state_dict = {}
+    # for key, value in state_dict.items():
+    #     new_key = key
+    #     if new_key.startswith("agent."):
+    #         new_key = "model." + new_key[6:]
+    #     new_key = new_key.replace(".mlp.c_fc1.", ".mlp.fc1.")
+    #     new_key = new_key.replace(".mlp.c_fc2.", ".mlp.fc2.")
+    #     new_key = new_key.replace(".mlp.c_proj.", ".mlp.proj.")
 
-        new_state_dict[new_key] = value
+    #     new_state_dict[new_key] = value
 
-    state_dict = new_state_dict
-    missing_keys, unexpected_keys = policy.load_state_dict(state_dict, strict=False)
+    # state_dict = new_state_dict
+    # missing_keys, unexpected_keys = policy.load_state_dict(state_dict, strict=False)
 
-    if missing_keys:
-        log.warning(f"Missing keys when loading checkpoint: {missing_keys}")
-    if unexpected_keys:
-        log.warning(f"Unexpected keys when loading checkpoint: {unexpected_keys}")
+    # if missing_keys:
+    #     log.warning(f"Missing keys when loading checkpoint: {missing_keys}")
+    # if unexpected_keys:
+    #     log.warning(f"Unexpected keys when loading checkpoint: {unexpected_keys}")
 
-    log.info("Pretrained weights loaded successfully!")
+    # log.info("Pretrained weights loaded successfully!")
     train_cfg.pretrained_policy = policy
 
     init_logging()
     lerobot_train(train_cfg)
 
 
-def get_flower(typename: str, **kwargs):
-    return FlowerVLAPolicy
+def get_beast(typename: str, **kwargs):
+    return BeastVLAPolicy
 
 if __name__ == "__main__":
-    factory.get_policy_class = get_flower
+    factory.get_policy_class = get_beast
     train()

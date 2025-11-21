@@ -120,7 +120,6 @@ class BeastTokenizer(torch.nn.Module):
         
         return einops.rearrange(reshaped_params, "b t d -> b (d t)")
     
-    @torch.no_grad()
     def compute_weights(self, demos):
         """Compute B-spline weights from demonstration trajectories."""
         times = self._get_repeated_times(demos.shape[0])
@@ -147,7 +146,7 @@ class BeastTokenizer(torch.nn.Module):
         """Update time grid."""
         self.times = times
     
-    @torch.no_grad()
+    @torch.no_grad() 
     def encode_discrete(self, trajs, update_bounds=False, init_p=None):
         """Encode trajectories to discrete tokens."""
         times = self._get_repeated_times(trajs.shape[0])
@@ -180,7 +179,7 @@ class BeastTokenizer(torch.nn.Module):
         
         return self._reconstruct_trajectory(params, times)
     
-    @torch.no_grad()
+    @torch.no_grad() 
     def encode_continuous(self, trajs, update_bounds=False):
         """Encode trajectories to continuous tokens (normalized parameters)."""
         times = self._get_repeated_times(trajs.shape[0])

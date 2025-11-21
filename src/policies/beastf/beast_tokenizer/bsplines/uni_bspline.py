@@ -132,7 +132,7 @@ class UniformBSpline(torch.nn.Module):
 
         self.times = torch.as_tensor(times, dtype=self.dtype,
                                      device=self.device)
-        tau = times.view(-1)[-1]
+        tau = times.reshape(-1)[-1]
         self.basis_gn.tau.copy_(tau)
         self.clear_computation_result()
 

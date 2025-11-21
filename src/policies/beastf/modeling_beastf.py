@@ -12,7 +12,7 @@ from transformers import AutoModelForCausalLM, AutoProcessor
 from .beastf_config import BeastVLAConfig
 # Assuming beast.py is in .beast_tokenizer package or similar
 from .beast_tokenizer.beast import BeastTokenizer
-from .beastf_utils import create_bidirectional_mask
+from .beastf_utils import create_bidirectional_mask, token_prediction_accuracy
 
 from lerobot.processor.normalize_processor import (
     NormalizerProcessorStep,
@@ -180,7 +180,6 @@ class BeastFModel(nn.Module):
         self.tokenizer = self.processor.tokenizer
         
         self.prompt_embeds = self._create_prompt_embed("<Primitives>").to(self.device)
-        self.vlm_token_dropout = nn.Dropout(self.token_dropout)
 
     def _setup_action_tokenizer(self, config: BeastVLAConfig) -> None:
         """
@@ -200,21 +199,8 @@ class BeastFModel(nn.Module):
         )
         self.update_w_bound = config.update_w_bound
 
-        # 2. Extend VLM Vocabulary
-        # The BeastTokenizer returns integers 0..255. 
-        # We need to add 256 new tokens to the VLM so it can predict them.
-        new_tokens = [f"<act_{i}>" for i in range(self.action_bins)]
-        num_added = self.tokenizer.add_tokens(new_tokens)
-        
-        if num_added != self.action_bins:
-            logger.warning(f"Expected to add {self.action_bins} tokens, but added {num_added}")
-
-        # Resize VLM embeddings to accommodate new tokens
-        self.vlm.resize_token_embeddings(len(self.tokenizer))
-        
-        # 3. Store Offset
-        # The token ID for "<act_0>" marks the start of our action space in VLM vocab
-        self.action_token_start_id = self.tokenizer.convert_tokens_to_ids("<act_0>")
+        # use <loc_0> as the starting token for action tokens 
+        self.action_token_start_id = self.tokenizer.convert_tokens_to_ids("<loc_0>")
         logger.info(f"Action tokens start at ID: {self.action_token_start_id}")
 
     def _create_prompt_embed(self, prompt_text: str) -> nn.Parameter:
@@ -233,9 +219,8 @@ class BeastFModel(nn.Module):
         self.vlm.to(self.device)
         self.action_tokenizer.to(self.device) # Ensure tokenizer buffers are on device
 
-    # --- Token Helper Methods (The "Glue" Logic) ---
     def _bins_to_llm_ids(self, bin_ids: torch.Tensor) -> torch.Tensor:
-        """Convert BeastTokenizer bins (0..255) to VLM token IDs."""
+        """Convert BeastTokenizer bins to VLM token IDs."""
         return bin_ids + self.action_token_start_id
 
     def _llm_ids_to_bins(self, llm_ids: torch.Tensor) -> torch.Tensor:
@@ -252,6 +237,9 @@ class BeastFModel(nn.Module):
 
         # 2. Prepare Targets
         actions = batch[self.target_modality]
+
+        ### test: visualize reconstructed errors
+        # self.action_tokenizer.visualize_reconstruction_error_discrete(actions)
         
         # Encode: Continuous Actions -> Discrete Bins (0..255)
         # BeastTokenizer.encode_discrete returns just the tokens tensor
@@ -281,7 +269,7 @@ class BeastFModel(nn.Module):
             encoder_hidden_states=features,
             encoder_attention_mask=encoder_attn_mask,
             attention_mask=bidirectional_mask,
-            use_cache=True,
+            use_cache=False,
         )
 
         lm_logits = self.vlm.language_model.get_output_embeddings()(decoder_outputs[0])
@@ -302,10 +290,11 @@ class BeastFModel(nn.Module):
             # Decode: Discrete Bins -> Continuous Actions
             recon_actions = self.action_tokenizer.decode_discrete(pred_bins)
             mse = F.mse_loss(recon_actions, actions).item()
+            token_pred_acc = token_prediction_accuracy(pred_ids, llm_label_ids)
 
         return {
             "loss": masked_lm_loss,
-            "loss_dict": {"ce_loss": masked_lm_loss.item(), "mse": mse}
+            "loss_dict": {"ce_loss": masked_lm_loss.item(), "mse": mse, "token_acc": token_pred_acc},
         }
 
     def encode_observations(self, batch: Dict) -> Dict[str, torch.Tensor]:
@@ -364,7 +353,7 @@ class BeastFModel(nn.Module):
             inputs_embeds=merged, attention_mask=attn_mask
         ).last_hidden_state
         
-        return {"features": self.vlm_token_dropout(features), "attention_mask": attn_mask}
+        return {"features": features, "attention_mask": attn_mask}
 
     def sample_actions(self, z, cond, inference=False):
         features = cond["features"]
