@@ -1,4 +1,4 @@
-from .beastf_config_backup import BeastVLAConfig
+from .beastf_config import BeastVLAConfig
 from .modeling_beastf import BeastVLAPolicy, BeastFModel
 
 __all__ = [

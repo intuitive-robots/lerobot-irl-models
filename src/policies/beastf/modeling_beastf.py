@@ -9,7 +9,7 @@ from lerobot.policies.pretrained import PreTrainedPolicy
 from timm.layers.mlp import Mlp
 from transformers import AutoModelForCausalLM, AutoProcessor
 
-from .beastf_config_backup import BeastVLAConfig
+from .beastf_config import BeastVLAConfig
 # Assuming beast.py is in .beast_tokenizer package or similar
 from .beast_tokenizer.beast import BeastTokenizer
 from .beastf_utils import create_bidirectional_mask
