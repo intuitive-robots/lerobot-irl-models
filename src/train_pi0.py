@@ -60,6 +60,7 @@ def train(cfg):
             "observation.images.right_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
             "observation.images.wrist_cam": PolicyFeature(FeatureType.VISUAL, img_shape),
             "observation.state": PolicyFeature(FeatureType.STATE, state_shape),
+            "task": PolicyFeature(FeatureType.TEXT, (1,)),
         },
         output_features={
             "action": PolicyFeature(FeatureType.ACTION, action_shape),
