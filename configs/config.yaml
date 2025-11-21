@@ -1,5 +1,5 @@
-repo_id: "vla_data_lerobot"
-dataset_path: "/home/hongyi/DATA/bootcamp_data/vla_data_lerobot"
+repo_id: "your data id"
+dataset_path: "your dataset path"
 checkpoint_path: /hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt
 
 train:
@@ -10,7 +10,7 @@ train:
   device: cuda
   num_workers: 1
   log_freq: 100
-  output_dir: "./output/beast/"
+  output_dir: "./output/pi0.5/"
   job_name: "model_training"
   push_to_hub: false
   #Only pi0/pi05
@@ -18,7 +18,7 @@ train:
   compile_model: false
 
 wandb:
-  enable: true
-  project: "lerobot-beast-training"
-  entity: "zhouhongyi"
-  mode: "online"
+  enable: false
+  project: "lerobot-training"
+  entity: "your-wandb-entity"
+  mode: "disabled"  # "online", "offline", "disabled"
