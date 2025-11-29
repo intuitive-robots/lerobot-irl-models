@@ -69,6 +69,7 @@ def _read_png_folder(folder: Path, resize: Optional[Tuple[int, int]]) -> np.ndar
             w, h = resize
             img_bgr = cv2.resize(img_bgr, (w, h), interpolation=cv2.INTER_AREA)
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        img_rgb = img_rgb[..., [2, 1, 0]]  # TODO: Remove after ZED cams have been fixed
         frames.append(img_rgb)
     if not frames:
         raise RuntimeError(f"Failed to load any images from {folder}")
@@ -130,7 +131,7 @@ def _build_features_spec(
 
     features = {}
     for k, (h, w, c) in image_shapes.items():
-        features[f"observation.images.{k}"] = {
+        features[f"observation.images.{k.replace('zed_', '')}"] = {
             "dtype": dtype_choice,
             "shape": (c, h, w),
             "names": ["channel", "height", "width"],
@@ -251,7 +252,9 @@ def save_episode_to_lerobot(
         image_dict = {}
         for cam, arr in cam_trimmed.items():
             # Convert from (H, W, C) to (C, H, W) for LeRobot
-            image_dict[f"observation.images.{cam}"] = np.transpose(arr[i], (2, 0, 1))
+            image_dict[f"observation.images.{cam.replace('zed_','')}"] = np.transpose(
+                arr[i], (2, 0, 1)
+            )
         for tname, arr in tactile_trimmed.items():
             # Convert from (H, W, C) to (C, H, W) for LeRobot
             image_dict[f"observation.images.{tname}"] = np.transpose(arr[i], (2, 0, 1))
@@ -387,9 +390,9 @@ def main():
     keep_images = False
 
     # Structure configuration
-    leader_subdir = "201 leader"
+    leader_subdir = "Gello leader"
     sensors_dirname = "sensors"
-    cams = ["right_cam", "wrist_cam"]
+    cams = ["zed_right_cam", "zed_left_cam", "zed_wrist_cam"]
     tactile_names = []  # Optional tactile folder names
     resize_w = 256
     resize_h = 256
