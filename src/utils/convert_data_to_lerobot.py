@@ -199,7 +199,7 @@ def save_episode_to_lerobot(
     leader_subdir: str,
     sensors_dirname: str,
     resize: Optional[Tuple[int, int]],
-    task_from: str = "parent",  # "parent" or "name"
+    task_instruction_mapping: Dict[str, str],  # str = "parent",  # "parent" or "name"
 ):
     """
     Read one episode and write it into the LeRobot dataset.
@@ -241,12 +241,7 @@ def save_episode_to_lerobot(
     cam_trimmed = {k: v[: T - 1] for k, v in cam_frames.items()}  # [T-1,H,W,3]
     tactile_trimmed = {k: v[: T - 1] for k, v in tactile_frames.items()}  # [T-1,H,W,3]
 
-    # Pick a task label
-    if task_from == "parent":
-        task = ep_dir.parent.name
-    else:
-        task = ep_dir.name
-
+    task_instr = task_instruction_mapping[ep_dir.parent.name]
     # Stream frames
     for i in range(T - 1):
         image_dict = {}
@@ -264,7 +259,7 @@ def save_episode_to_lerobot(
                 **image_dict,
                 "observation.state": state_np[i],
                 "action": action_np[i],
-                "task": task,
+                "task": task_instr,
             },
         )
     lerobot_ds.save_episode()
@@ -287,13 +282,13 @@ def create_lerobot_dataset(
     sensors_dirname: str,
     resize_w: Optional[int],
     resize_h: Optional[int],
-    task_from: str,
+    task_instruction_mapping: Dict[str, str],
 ):
     raw_dir = raw_dir.resolve()
     if local_dir is None:
         local_dir = Path(HF_LEROBOT_HOME)
     dataset_name = raw_dir.name
-    out_root = (local_dir / f"{dataset_name}_lerobot").resolve()
+    out_root = local_dir.resolve()
     if out_root.exists():
         shutil.rmtree(out_root)
 
@@ -345,7 +340,7 @@ def create_lerobot_dataset(
                 leader_subdir=leader_subdir,
                 sensors_dirname=sensors_dirname,
                 resize=resize,
-                task_from=task_from,
+                task_instruction_mapping=task_instruction_mapping,
             )
             print(f"[OK]   episode {ep}")
         except Exception as e:
@@ -396,7 +391,12 @@ def main():
     tactile_names = []  # Optional tactile folder names
     resize_w = 256
     resize_h = 256
-    task_from = "parent"  # "parent" or "name"
+
+    # The script looks up the parent dir name of an episode and matches the key
+    # in the following directory to identify the correct task instruction
+    task_instruction_mapping = {
+        "pepper_only": "Pick up the bell pepper and place it in the bowl."
+    }
 
     create_lerobot_dataset(
         raw_dir=raw_dir,
@@ -415,7 +415,7 @@ def main():
         sensors_dirname=sensors_dirname,
         resize_w=resize_w,
         resize_h=resize_h,
-        task_from=task_from,
+        task_instruction_mapping=task_instruction_mapping,
     )
 
 
