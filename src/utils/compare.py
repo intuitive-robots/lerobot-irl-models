@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+from datetime import datetime
 from pathlib import Path
 
 import hydra
@@ -10,13 +11,13 @@ import seaborn as sns
 import torch
 import torchvision.transforms as transforms
 import wandb
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from omegaconf import DictConfig
 from PIL import Image
 from tqdm import tqdm
 
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from policies.flower.flower_config import FlowerVLAConfig
-from policies.flower.modeling_flower import FlowerVLAPolicy
+from src.policies.flower.flower_config import FlowerVLAConfig
+from src.policies.flower.modeling_flower import FlowerVLAPolicy
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ def move_obs_to_device(obs_dict: dict, device: torch.device) -> dict:
 
 
 @hydra.main(
-    config_path="../configs", config_name="eval_flower_config.yaml", version_base="1.3"
+    config_path="../../configs", config_name="eval_config.yaml", version_base="1.3"
 )
 def main(cfg: DictConfig) -> None:
     """Entry point. Loads a trained checkpoint, runs it on the evaluation dataset and
@@ -77,7 +78,7 @@ def main(cfg: DictConfig) -> None:
     # 3. Load dataset stats for normalization
     # ---------------------------------------------------------------------
     dataset_stats = None
-    stats_path = "/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
+    stats_path = "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test/meta/stats.json"
 
     if os.path.exists(stats_path):
         log.info(f"Loading dataset stats from {stats_path}")
@@ -143,9 +144,22 @@ def main(cfg: DictConfig) -> None:
         new_state_dict[new_key] = value
 
     log.info(f"Preprocessed {len(new_state_dict)} keys from checkpoint")
-
     # Load with strict=False to allow partial loading
     missing_keys, unexpected_keys = agent.load_state_dict(new_state_dict, strict=False)
+
+    if "model.vlm.language_model.model.shared.weight" in missing_keys:
+        vlm_backbone = agent.model.vlm.language_model.model
+        if vlm_backbone.encoder.embed_tokens.weight is vlm_backbone.shared.weight:
+            # Weights are correctly tied, missing key can be ignored:
+            missing_keys.remove("model.vlm.language_model.model.shared.weight")
+        else:
+            log.warning(
+                f"""
+                        model.vlm.language_model.model.shared.weight has been loaded with random noise as it was not found in the checkpoint.
+                        It has not been automatically tied to the weights of encoder model.vlm.language_model.model.embed_tokens.weight.
+                        Please ensure that this is correct (e.g. by using a HF standard model or by tying the weights yourself)
+                          """
+            )
 
     if missing_keys:
         log.warning(f"Missing keys in checkpoint ({len(missing_keys)} total):")
@@ -156,7 +170,6 @@ def main(cfg: DictConfig) -> None:
         log.warning(f"Unexpected keys in checkpoint ({len(unexpected_keys)} total):")
         log.warning(f"  First few: {unexpected_keys[:5]}")
         log.warning("  → These parameters from checkpoint will be ignored!")
-
     if not missing_keys and not unexpected_keys:
         log.info("✅ All parameters loaded successfully!")
     else:
@@ -172,9 +185,12 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     # 5. Load LeRobot Dataset
     # ---------------------------------------------------------------------
-    dataset_path = Path("/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot")
+    dataset_path = Path(
+        "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test"
+    )
+    repo_id = "test"
     log.info(f"Loading LeRobot dataset from {dataset_path}")
-    dataset = LeRobotDataset(root=dataset_path)
+    dataset = LeRobotDataset(root=dataset_path, repo_id=repo_id, video_backend="pyav")
     log.info(f"Found {dataset.num_episodes} episodes in dataset")
 
     # Storage for metrics across all episodes
@@ -196,15 +212,13 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     for episode_idx in range(dataset.num_episodes):
         log.info(f"\n{'='*80}")
-        log.info(
-            f"Processing episode {episode_idx + 1}/{dataset.num_episodes}"
-        )
+        log.info(f"Processing episode {episode_idx + 1}/{dataset.num_episodes}")
         log.info(f"{'='*80}")
 
         try:
             # Get episode range
-            from_idx = dataset.episode_data_index["from"][episode_idx].item()
-            to_idx = dataset.episode_data_index["to"][episode_idx].item()
+            from_idx = dataset.meta.episodes[episode_idx]["dataset_from_index"]
+            to_idx = dataset.meta.episodes[episode_idx]["dataset_to_index"]
             num_samples = to_idx - from_idx
 
             if num_samples == 0:
@@ -221,18 +235,24 @@ def main(cfg: DictConfig) -> None:
 
             for idx in tqdm(range(from_idx, to_idx), desc=f"Episode {episode_idx + 1}"):
                 item = dataset[idx]
-                
+
                 # Prepare observation
                 # LeRobotDataset returns images as (C, H, W) float32 in [0, 1]
                 right_cam = item["observation.images.right_cam"]
                 wrist_cam = item["observation.images.wrist_cam"]
                 state = item["observation.state"]
                 task = item["task"]
-                
+
                 # Apply transforms and move to device
                 obs_dict = {
-                    "observation.images.right_cam": tensor_transform(right_cam).unsqueeze(0).unsqueeze(0).to(device),
-                    "observation.images.wrist_cam": tensor_transform(wrist_cam).unsqueeze(0).unsqueeze(0).to(device),
+                    "observation.images.right_cam": tensor_transform(right_cam)
+                    .unsqueeze(0)
+                    .unsqueeze(0)
+                    .to(device),
+                    "observation.images.wrist_cam": tensor_transform(wrist_cam)
+                    .unsqueeze(0)
+                    .unsqueeze(0)
+                    .to(device),
                     "observation.state": state.unsqueeze(0).unsqueeze(0).to(device),
                     "task": task,
                 }
@@ -276,7 +296,7 @@ def main(cfg: DictConfig) -> None:
 
             # Gripper metrics
             pred_discrete = np.where(gripper_np > 0, 1, -1)
-            # For GT, it might be 0/1 or -1/1 depending on dataset. 
+            # For GT, it might be 0/1 or -1/1 depending on dataset.
             # Assuming standard LeRobot/Robocasa convention, check if it needs thresholding
             # But usually MSE is enough for continuous gripper, accuracy for discrete.
             # Let's assume threshold at 0.5 if it's 0/1, or 0 if it's -1/1.
@@ -284,10 +304,12 @@ def main(cfg: DictConfig) -> None:
             # If GT is [-1, 1], threshold at 0.
             # Let's infer from data range or just use 0 as threshold if it looks like -1/1
             if gripper_gt_np.min() >= 0:
-                gt_discrete = np.where(gripper_gt_np > 0.5, 1, -1) # Map 0/1 to -1/1 for comparison
+                gt_discrete = np.where(
+                    gripper_gt_np > 0.5, 1, -1
+                )  # Map 0/1 to -1/1 for comparison
             else:
                 gt_discrete = np.where(gripper_gt_np > 0, 1, -1)
-                
+
             gripper_accuracy = (pred_discrete == gt_discrete).mean()
             gripper_mse = np.mean((gripper_np - gripper_gt_np) ** 2)
 
@@ -349,7 +371,9 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     # 8. Save aggregate results
     # ---------------------------------------------------------------------
-    results_path = Path("plots") / "all_predictions.pt"
+    save_path = f"plots/{datetime.now().strftime('%Y_%m_%d__%H_%M_%S')}"
+    os.makedirs(save_path)
+    results_path = f"{save_path}/all_predictions.pt"
     torch.save(
         {
             "episode_metrics": all_episode_metrics,
@@ -499,7 +523,7 @@ def main(cfg: DictConfig) -> None:
         axes[dim].legend(handles=legend_elements)
 
     plt.tight_layout()
-    plt.savefig("plots/concatenated_predictions.png", dpi=150)
+    plt.savefig(f"{save_path}/concatenated_predictions.png", dpi=150)
     plt.close()
     log.info("Saved concatenated_predictions.png")
 
@@ -571,7 +595,7 @@ def main(cfg: DictConfig) -> None:
         axes[dim].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("plots/average_trajectories.png", dpi=150)
+    plt.savefig(f"{save_path}/average_trajectories.png", dpi=150)
     plt.close()
     log.info("Saved average_trajectories.png")
 
@@ -646,7 +670,7 @@ def main(cfg: DictConfig) -> None:
         fontweight="bold",
         pad=20,
     )
-    plt.savefig("plots/statistical_summary.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"{save_path}/statistical_summary.png", dpi=150, bbox_inches="tight")
     plt.close()
     log.info("Saved statistical_summary.png")
 
@@ -689,7 +713,7 @@ def main(cfg: DictConfig) -> None:
     axes[1].set_ylabel("Episode")
 
     plt.tight_layout()
-    plt.savefig("plots/metrics_heatmap.png", dpi=150)
+    plt.savefig(f"{save_path}/metrics_heatmap.png", dpi=150)
     plt.close()
     log.info("Saved metrics_heatmap.png")
 
@@ -708,4 +732,5 @@ def main(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
+    # run as python -m src.utils.compare
     main()
