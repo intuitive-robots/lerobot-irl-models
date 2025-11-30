@@ -4,6 +4,11 @@ from typing import Any, Dict, List, Tuple
 import torch
 import torch.nn as nn
 from lerobot.policies.pretrained import PreTrainedPolicy
+from lerobot.processor.normalize_processor import (
+    NormalizerProcessorStep,
+    UnnormalizerProcessorStep,
+)
+from lerobot.utils.constants import ACTION
 from timm.layers.mlp import Mlp
 from torchdiffeq import odeint
 from transformers import AutoModelForCausalLM, AutoProcessor
@@ -20,11 +25,6 @@ from .transformers import (
     ZeroEncoder,
     stateless_norm,
 )
-from lerobot.processor.normalize_processor import (
-    NormalizerProcessorStep,
-    UnnormalizerProcessorStep,
-)
-from lerobot.utils.constants import ACTION
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         super().__init__(config)
 
         # If dataset_stats not provided, try to get from config
-        if dataset_stats is None and hasattr(config, '_dataset_stats'):
+        if dataset_stats is None and hasattr(config, "_dataset_stats"):
             dataset_stats = config._dataset_stats
             logger.info("📊 Using dataset_stats from config")
 
@@ -90,7 +90,7 @@ class FlowerVLAPolicy(PreTrainedPolicy):
 
         Returns:
             Tuple of (loss tensor, output dictionary with metrics)
-        """     
+        """
         result = self.model.forward(batch)
         return result["loss"], result["loss_dict"]
 
@@ -237,6 +237,8 @@ class FlowerModel(nn.Module):
             config.num_sampling_steps,
         )
         self._init_flags(
+            config.first_view_key,
+            config.second_view_key,
             config.use_second_view,
             config.use_causal_attention,
             config.use_cross_attn,
@@ -250,7 +252,6 @@ class FlowerModel(nn.Module):
             config.sampling_type,
             config.use_proprio,
             config.return_act_chunk,
-            config.second_view_key,
             config.cfg_dropout,
             config.cfg_lambda,
         )
@@ -333,6 +334,8 @@ class FlowerModel(nn.Module):
 
     def _init_flags(
         self,
+        first_view_key: str,
+        second_view_key: str,
         use_second_view: bool,
         use_causal_attention: bool,
         use_cross_attn: bool,
@@ -346,7 +349,6 @@ class FlowerModel(nn.Module):
         sampling_type: str,
         use_proprio: bool,
         return_act_chunk: bool,
-        second_view_key: str,
         cfg_dropout: float,
         cfg_lambda: float,
     ) -> None:
@@ -361,6 +363,8 @@ class FlowerModel(nn.Module):
             "stratified",
         ]:
             raise ValueError(f"Invalid sampling type: {sampling_type}")
+        self.first_view_key = first_view_key
+        self.second_view_key = second_view_key
         self.use_second_view = use_second_view
         self.use_causal_attention = use_causal_attention
         self.use_cross_attn = use_cross_attn
@@ -374,7 +378,6 @@ class FlowerModel(nn.Module):
         self.token_dropout = token_dropout
         self.action_type_adaln = action_type_adaln
         self.sampling_type = sampling_type
-        self.second_view_key = second_view_key
         self.cfg_dropout = cfg_dropout
         self.cfg_lambda = cfg_lambda
 
@@ -589,7 +592,7 @@ class FlowerModel(nn.Module):
         device = self.device
         default_dtype = next(self.parameters()).dtype
         # Debug: print available keys
-        image_tensor = batch["observation.images.right_cam"]
+        image_tensor = batch[self.first_view_key]
         # Handle both 4D [B, C, H, W] and 5D [B, T, C, H, W] image tensors
         if len(image_tensor.shape) == 4:
             # Shape is [B, C, H, W], add temporal dimension
@@ -604,8 +607,8 @@ class FlowerModel(nn.Module):
         )
         image_features = image_features.view(B, T * image_features.shape[1], -1)
 
-        if self.use_second_view and "observation.images.wrist_cam" in batch:
-            image2_tensor = batch["observation.images.wrist_cam"]
+        if self.use_second_view and self.second_view_key in batch:
+            image2_tensor = batch[self.second_view_key]
 
             # Handle both 4D and 5D for second view as well
             if len(image2_tensor.shape) == 4:

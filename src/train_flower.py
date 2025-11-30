@@ -10,6 +10,22 @@ import torch
 from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.policies import factory
+
+from policies.flower.processor_flower import make_flower_pre_post_processors
+
+
+def my_make_pre_post_processors(policy_cfg, pretrained_path=None, **kwargs):
+    print(">>> Using custom make_pre_post_processors <<<")
+    processors = make_flower_pre_post_processors(
+        config=policy_cfg,
+        dataset_stats=kwargs.get("dataset_stats"),
+    )
+    return processors
+
+
+# _original_make_pre_post_processors = factory.make_pre_post_processors
+factory.make_pre_post_processors = my_make_pre_post_processors
+
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.utils.utils import init_logging
 

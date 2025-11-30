@@ -69,7 +69,9 @@ def _read_png_folder(folder: Path, resize: Optional[Tuple[int, int]]) -> np.ndar
             w, h = resize
             img_bgr = cv2.resize(img_bgr, (w, h), interpolation=cv2.INTER_AREA)
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        img_rgb = img_rgb[..., [2, 1, 0]]  # TODO: Remove after ZED cams have been fixed
+        # NOTE: Currently the collect_data.py script saves the image observations with red and blue channels switched
+        # -> remove the following line as soon as this has been fixed in the data collection
+        img_rgb = img_rgb[..., [2, 1, 0]]
         frames.append(img_rgb)
     if not frames:
         raise RuntimeError(f"Failed to load any images from {folder}")
@@ -371,9 +373,9 @@ def create_lerobot_dataset(
 
 def main():
     # Configuration - modify these variables as needed
-    raw_dir = Path("/home/multimodallearning/data_collected/flower/trickandtreat")
+    raw_dir = Path("/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/raw/pepper_only")
     local_dir = Path(
-        "/home/multimodallearning/data_collected/flower-lerobot/trickandtreat"
+        "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
     )
     repo_id = None  # HF repo id (e.g. user/dataset). Required if push_to_hub=True
     push_to_hub = False
