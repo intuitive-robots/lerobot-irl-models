@@ -1,0 +1,3 @@
+# conf/dataset/default.yaml
+repo_id: "test" #"pepper_only" #"multi_task_11" #"pepper_only"
+dataset_path: "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test" #pepper_only" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/multi_task_11" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"

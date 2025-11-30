@@ -1,0 +1,15 @@
+# conf/config.yaml
+defaults:
+- dataset: default
+- train: train
+- model: flower
+- optimizer: adamw
+- scheduler: cosine_warmup
+- wandb: wandb
+- _self_
+
+
+# Top-level metadata + short-cuts
+repo_id: ${dataset.repo_id}
+dataset_path: ${dataset.dataset_path}
+checkpoint_path: ${train.checkpoint_path}

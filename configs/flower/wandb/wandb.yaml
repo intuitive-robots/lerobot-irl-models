@@ -1,0 +1,5 @@
+# conf/wandb/wandb.yaml
+enable: false
+project: "lerobot-training"
+entity: "your-wandb-entity"
+mode: "disabled" # options: online, offline, disabled

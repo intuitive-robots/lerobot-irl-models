@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from wsgiref.handlers import CGIHandler
 
@@ -12,7 +13,6 @@ from lerobot.policies import factory
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.utils.utils import init_logging
 
-from policies.flower.flower_config import FlowerVLAConfig
 from policies.flower.modeling_flower import FlowerVLAPolicy
 
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
@@ -22,8 +22,15 @@ sys.path.insert(0, str(project_root))
 log = logging.getLogger(__name__)
 
 
+def create_out_dir(cfg):
+    now = datetime.now()
+    current_date = now.strftime("%Y-%m-%d")
+    current_time = now.strftime("%H-%M-%S")
+    return Path(f"{cfg.train.output_dir}/{current_date}/{current_time}")
+
+
 @hydra.main(
-    config_path="../configs", config_name="config", version_base="1.3"
+    config_path="../configs/flower", config_name="flower_config", version_base="1.3"
 )
 def train(cfg):
     dataset_cfg = DatasetConfig(
@@ -31,17 +38,14 @@ def train(cfg):
         root=cfg.dataset_path,
         video_backend="pyav",
     )
-    pretrained_config = FlowerVLAConfig(
-        device=cfg.train.device,
-        push_to_hub=cfg.train.push_to_hub,
-        )
-    
+    pretrained_config = hydra.utils.instantiate(cfg.model, _convert_="all")
+
     train_cfg = TrainPipelineConfig(
         policy=pretrained_config,
         dataset=dataset_cfg,
         batch_size=cfg.train.batch_size,
         steps=cfg.train.steps,
-        output_dir=Path(cfg.train.output_dir),
+        output_dir=create_out_dir(cfg),
         job_name=cfg.train.job_name,
         save_freq=cfg.train.save_freq,
         seed=cfg.train.seed,
@@ -102,6 +106,7 @@ def train(cfg):
 
 def get_flower(typename: str, **kwargs):
     return FlowerVLAPolicy
+
 
 if __name__ == "__main__":
     factory.get_policy_class = get_flower
