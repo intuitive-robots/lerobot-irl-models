@@ -1,8 +1,8 @@
 # conf/train/train.yaml
 checkpoint_path: "/home/hk-project-p0024638/usmrd/model_weights/flower_pret/360000_model_weights.pt"
 batch_size: 64
-steps: 1001 #40000
-save_freq: 1000
+steps: 40000
+save_freq: 8000
 seed: 42
 device: cuda
 num_workers: 4
