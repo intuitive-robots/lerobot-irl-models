@@ -42,7 +42,6 @@ log = logging.getLogger(__name__)
     config_path="../configs/flower", config_name="flower_config", version_base="1.3"
 )
 def train(cfg):
-    timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
     dataset_cfg = DatasetConfig(
         repo_id=cfg.repo_id,
         root=cfg.dataset_path,
@@ -54,8 +53,8 @@ def train(cfg):
         dataset=dataset_cfg,
         batch_size=cfg.train.batch_size,
         steps=cfg.train.steps,
-        output_dir=Path(f"{cfg.train.output_dir}/{timestamp}"),
-        job_name=f"{cfg.train.job_name}_{timestamp}",
+        output_dir=Path(cfg.train.output_dir),
+        job_name=cfg.train.job_name,
         save_freq=cfg.train.save_freq,
         seed=cfg.train.seed,
         log_freq=cfg.train.log_freq,
