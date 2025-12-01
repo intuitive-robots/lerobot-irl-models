@@ -19,7 +19,8 @@ python src/train_flower.py \
     wandb.enable=false \
     dataset.repo_id=test \
     dataset.dataset_path=/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test \
+    train.batch_size=16\
     train.steps=1000 \
     train.save_freq=1000 \
-    model.freeze_florence=true\
-    model.freeze_vision_tower=true
+    model.freeze_florence=false \
+    model.freeze_vision_tower=false
