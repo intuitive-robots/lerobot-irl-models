@@ -47,8 +47,8 @@ img_modalities: ["image_primary"]
 
 # VLM configuration
 vlm_path: "microsoft/Florence-2-large"
-freeze_florence: true
-freeze_vision_tower: true
+freeze_florence: false
+freeze_vision_tower: false
 freeze_embeddings_only: true
 vlm_prompt_style: "default"
 token_dropout: 0.1
@@ -61,13 +61,14 @@ action_dim: 8
 act_window_size: 16
 chunk_size: 16
 multistep: 16
-num_sampling_steps: 4
+num_sampling_steps: 10
 sampling_type: "uniform"
 lowdim_obs_dim: 16
-use_proprio: true
+use_proprio: false #true
 
 
 # Image configuration
+first_view_key: "observation.images.right_cam"
 use_second_view: true
 second_view_key: "observation.images.wrist_cam" #"image_secondary"
 
