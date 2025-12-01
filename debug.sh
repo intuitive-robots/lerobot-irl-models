@@ -4,8 +4,8 @@
 #SBATCH --mem=16G
 #SBATCH --time=00:16:00  #40.000 steps should take ~6:45h
 #SBATCH -J debug_flower
-#SBATCH -o logs/%x_%j.out
-#SBATCH -e logs/%x_%j.err
+#SBATCH -o logs/debug/%x_%j.out
+#SBATCH -e logs/debug/%x_%j.err
 
 source ~/.bashrc
 conda activate lerobot-irl-models
@@ -15,4 +15,11 @@ export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
 
 # Start training
-python src/train_flower.py wandb.enable=false dataset.repo_id=test dataset.dataset_path=/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test train.steps=1000 train.save_freq=1000
+python src/train_flower.py \
+    wandb.enable=false \
+    dataset.repo_id=test \
+    dataset.dataset_path=/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test \
+    train.steps=1000 \
+    train.save_freq=1000 \
+    model.freeze_florence=true\
+    model.freeze_vision_tower=true
