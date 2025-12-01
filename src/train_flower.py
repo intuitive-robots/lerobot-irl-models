@@ -38,31 +38,24 @@ sys.path.insert(0, str(project_root))
 log = logging.getLogger(__name__)
 
 
-def create_out_dir(cfg):
-    now = datetime.now()
-    current_date = now.strftime("%Y-%m-%d")
-    current_time = now.strftime("%H-%M-%S")
-    return Path(f"{cfg.train.output_dir}/{current_date}/{current_time}")
-
-
 @hydra.main(
     config_path="../configs/flower", config_name="flower_config", version_base="1.3"
 )
 def train(cfg):
+    timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
     dataset_cfg = DatasetConfig(
         repo_id=cfg.repo_id,
         root=cfg.dataset_path,
         video_backend="pyav",
     )
     pretrained_config = hydra.utils.instantiate(cfg.model, _convert_="all")
-
     train_cfg = TrainPipelineConfig(
         policy=pretrained_config,
         dataset=dataset_cfg,
         batch_size=cfg.train.batch_size,
         steps=cfg.train.steps,
-        output_dir=create_out_dir(cfg),
-        job_name=cfg.train.job_name,
+        output_dir=Path(f"{cfg.train.output_dir}/{timestamp}"),
+        job_name=f"{cfg.train.job_name}_{timestamp}",
         save_freq=cfg.train.save_freq,
         seed=cfg.train.seed,
         log_freq=cfg.train.log_freq,
