@@ -5,18 +5,11 @@ from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
 from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
-from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 
 
 @PreTrainedConfig.register_subclass("flower")
 @dataclass
-class FlowerVLAConfig(
-    SmolVLAConfig
-):  # TODO: use PreTrainedConfig instead to make sure that no wrong values from SmolVLA Config are taken in
-    # From SmolVLA -> check if SmolVLAConfig can be dropped
-    n_obs_steps: int = 1
-    chunk_size: int = 16
-    n_action_steps: int = 16
+class FlowerVLAConfig(PreTrainedConfig):
 
     obs_modalities: str = "observation"
     goal_modalities: str = "task"
@@ -124,3 +117,21 @@ class FlowerVLAConfig(
             peak_lr=2e-5,
             decay_lr=1e-5,
         )
+
+    # Overwrite abstract methods
+    def validate_features(self) -> None:
+        """This method can be used in the __init__ of the policy class to
+        validate the input features (see SmolVLAPolicy)"""
+        return None
+
+    @property
+    def observation_delta_indices(self) -> list:
+        return [0]
+
+    @property
+    def action_delta_indices(self) -> list:
+        return list(range(self.chunk_size))
+
+    @property
+    def reward_delta_indices(self) -> None:
+        return None
