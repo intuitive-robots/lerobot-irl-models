@@ -1,7 +1,8 @@
 seed: 42
 device: cuda
-checkpoint_path: /home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
-stats_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test/stats.json # for evaluation for flower
+checkpoint_path: /home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025_12_01__00_50_57/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
+stats_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only/stats.json # for evaluation for flower
+dataset_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only
 wandb:
   project: "lerobot-pi0-eval"
   entity: "your_wandb_entity"
