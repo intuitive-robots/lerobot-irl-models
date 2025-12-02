@@ -58,12 +58,12 @@ cfg_lambda: 1.0
 
 # Action and observation configuration
 action_dim: 8
-act_window_size: 16
+act_window_size: 30 #16
 multistep: 16
 num_sampling_steps: 10
 sampling_type: "uniform"
 lowdim_obs_dim: 16
-use_proprio: false #true
+use_proprio: true #false
 
 
 # Image configuration
