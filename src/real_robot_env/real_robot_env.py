@@ -68,6 +68,14 @@ class RealRobotEnv(gym.Env):
             if not device.close():
                 print(f"Failed to close {device.name}")
 
+    def get_observation(self):
+        """Get current observation without side effects.
+        
+        This is used by real-time control systems that need to poll
+        observations independently from action execution.
+        """
+        return self._get_obs()
+
     def _get_obs(self):
         obs_dict = {}
 

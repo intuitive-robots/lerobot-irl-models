@@ -24,7 +24,6 @@ OmegaConf.register_new_resolver("add", lambda *numbers: sum(numbers))
 OmegaConf.register_new_resolver("mul", lambda *numbers: np.prod(numbers))
 torch.cuda.empty_cache()
 
-
 def set_seed_everywhere(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -158,14 +157,29 @@ def main(cfg: DictConfig) -> None:
         else:
             log.info("⚠️  Model loaded with warnings (see above)")
 
+    # Turn on RTC
+    rtc_cfg = RTCConfig(
+          enabled=cfg.rtc.enabled,
+          execution_horizon=cfg.rtc.execution_horizon,
+          max_guidance_weight=cfg.rtc.max_guidance_weight,
+          prefix_attention_schedule=RTCAttentionSchedule[cfg.rtc.prefix_attention_schedule.upper()],
+      )
+    
+    agent.config.rtc_config = rtc_cfg
+
+    # Init RTC processort, as by default if RTC disabled in the config
+    # The processor won't be created
+    agent.init_rtc_processor()
+
     agent = agent.to(cfg.device)
     agent.eval()
-    log.info("Initializing RealRobot environment...")
 
+
+    log.info("Initializing RealRobot environment...")
     env_sim = RealRobot(device=cfg.device)
 
     log.info("Starting evaluation on real robot...")
-    env_sim.test_agent(agent)
+    env_sim.test_agent(agent, cfg, rtc_cfg)
 
     log.info("Evaluation completed")
     wandb.finish()

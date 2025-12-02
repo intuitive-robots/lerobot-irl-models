@@ -7,6 +7,7 @@ from lerobot.policies.pretrained import PreTrainedPolicy
 from timm.layers.mlp import Mlp
 from torchdiffeq import odeint
 from transformers import AutoModelForCausalLM, AutoProcessor
+from lerobot.policies.rtc.modeling_rtc import RTCProcessor
 
 from .action_index import ActionIndex
 from .flower_config import FlowerVLAConfig
@@ -78,6 +79,24 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         self.model = FlowerModel(config)
 
         self.model.reset()
+
+    # ACTIVATE RTC
+    def init_rtc_processor(self):
+        """Initialize RTC processor if RTC is enabled in config."""
+        self.rtc_processor = None
+
+        # Create processor if config provided
+        # If RTC is not enabled - we can still track the denoising data
+        if self.config.rtc_config is not None:
+            self.rtc_processor = RTCProcessor(self.config.rtc_config)
+
+            model_value = getattr(self, "model", None)
+            if model_value is not None:
+                model_value.rtc_processor = self.rtc_processor
+    
+    def _rtc_enabled(self) -> bool:
+        return self.config.rtc_config is not None and self.config.rtc_config.enabled
+    
 
     def forward(
         self, batch: Dict[str, torch.Tensor]
