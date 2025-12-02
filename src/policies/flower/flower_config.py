@@ -33,7 +33,9 @@ class FlowerVLAConfig(PreTrainedConfig):
             "observation.images.left_cam": PolicyFeature(
                 type=FeatureType.VISUAL, shape=(3, 224, 224)
             ),
-            "observation.state": PolicyFeature(type=FeatureType.STATE, shape=(7,)),
+            "observation.state": PolicyFeature(
+                type=FeatureType.STATE, shape=(8,)
+            ),  # if using old lerobot data: set shape to (7,)
             "task": PolicyFeature(type=FeatureType.LANGUAGE, shape=(1,)),
         }
     )
