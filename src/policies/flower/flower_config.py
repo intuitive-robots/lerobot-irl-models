@@ -4,12 +4,16 @@ from typing import Dict, List
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
-from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
+
+# from flower.flower_scheduler import CosineDecayWithWarmupSchedulerFLOWERConfig
 
 
 @PreTrainedConfig.register_subclass("flower")
 @dataclass
 class FlowerVLAConfig(PreTrainedConfig):
+    scheduler: None = None  #: CosineDecayWithWarmupSchedulerFLOWERConfig = field(default_factory=CosineDecayWithWarmupSchedulerFLOWERConfig)
+
+    optimizer: AdamWConfig = field(default_factory=AdamWConfig)
 
     obs_modalities: str = "observation"
     goal_modalities: str = "task"
@@ -103,20 +107,10 @@ class FlowerVLAConfig(PreTrainedConfig):
 
     # TODO: Handle these methods via yaml too
     def get_optimizer_preset(self) -> AdamWConfig:
-        return AdamWConfig(
-            lr=2e-5,
-            betas=(0.9, 0.95),
-            eps=1e-8,
-            weight_decay=0.01,
-        )
+        return self.optimizer
 
     def get_scheduler_preset(self):
-        return CosineDecayWithWarmupSchedulerConfig(
-            num_warmup_steps=1000,
-            num_decay_steps=400_000,
-            peak_lr=2e-5,
-            decay_lr=1e-5,
-        )
+        return self.scheduler
 
     # Overwrite abstract methods
     def validate_features(self) -> None:
