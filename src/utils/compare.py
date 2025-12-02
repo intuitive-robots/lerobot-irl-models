@@ -78,13 +78,12 @@ def main(cfg: DictConfig) -> None:
     # 3. Load dataset stats for normalization
     # ---------------------------------------------------------------------
     dataset_stats = None
-    stats_path = "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test/meta/stats.json"
 
-    if os.path.exists(stats_path):
-        log.info(f"Loading dataset stats from {stats_path}")
+    if os.path.exists(cfg.stats_path):
+        log.info(f"Loading dataset stats from {cfg.stats_path}")
         import json
 
-        with open(stats_path, "r") as f:
+        with open(cfg.stats_path, "r") as f:
             stats_json = json.load(f)
 
         log.info(f"Raw stats keys from JSON: {list(stats_json.keys())}")
@@ -110,7 +109,7 @@ def main(cfg: DictConfig) -> None:
 
         log.info(f"Final dataset_stats keys: {list(dataset_stats.keys())}")
     else:
-        log.warning(f"Dataset stats file not found at {stats_path}")
+        log.warning(f"Dataset stats file not found at {cfg.stats_path}")
 
     # ---------------------------------------------------------------------
     # 4. Build the agent *exactly* as during training and load the checkpoint
@@ -185,12 +184,10 @@ def main(cfg: DictConfig) -> None:
     # ---------------------------------------------------------------------
     # 5. Load LeRobot Dataset
     # ---------------------------------------------------------------------
-    dataset_path = Path(
-        "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test"
+    log.info(f"Loading LeRobot dataset from {cfg.dataset_path}")
+    dataset = LeRobotDataset(
+        root=cfg.dataset_path, repo_id=cfg.repo_id, video_backend="pyav"
     )
-    repo_id = "test"
-    log.info(f"Loading LeRobot dataset from {dataset_path}")
-    dataset = LeRobotDataset(root=dataset_path, repo_id=repo_id, video_backend="pyav")
     log.info(f"Found {dataset.num_episodes} episodes in dataset")
 
     # Storage for metrics across all episodes
