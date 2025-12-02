@@ -64,7 +64,6 @@ class FlowerVLAPolicy(PreTrainedPolicy):
             dataset_stats = config._dataset_stats
             logger.info("📊 Using dataset_stats from config")
 
-        config.validate_features()
         self.config = config
         self.normalize_inputs = NormalizerProcessorStep(
             config.input_features, config.normalization_mapping, dataset_stats
@@ -694,26 +693,36 @@ class FlowerModel(nn.Module):
             features[:, text_start:text_end, :] = features[
                 :, text_start:text_end, :
             ] * (1 - drop_mask)
-
+        # TODO: think about moving some of these initializations to processor class
         return {
             "features": features,
             "frequency_embeds": self.frequency_embedder(
                 batch.get(
                     "task.frequency",
-                    torch.ones(B, 1, device=device, dtype=default_dtype),
+                    torch.ones(B, 1, device=device, dtype=default_dtype)
+                    * 15,  # TODO: fix hardcoding of frequency
                 )
                 .to(device)
                 .to(default_dtype)
             ),
             "action_space_embeds": self.action_space_embedder(
-                batch.get(
-                    "task.action_space_index",
-                    torch.zeros(B, dtype=torch.long, device=device),
-                ).to(device)
+                torch.full(
+                    (B,),
+                    fill_value=self.action_space_index.action_space_mapping.get(
+                        ("JOINT_POS", "position", 1)
+                    ),
+                    dtype=torch.long,
+                    device=device,
+                )
+                # TODO: fix hardcoding, read the robot_type, the control type and the number of arms directly from the dataset
             ),
-            "action_type": batch.get(
-                "task.action_space_index",
-                torch.zeros(B, dtype=torch.long, device=device),
+            "action_type": torch.full(
+                (B,),
+                fill_value=self.action_space_index.action_space_mapping.get(
+                    ("JOINT_POS", "position", 1)
+                ),
+                dtype=torch.long,
+                device=device,
             ),
             "proprio": batch["observation.state"].to(device).to(default_dtype)
             if self.use_proprio and "observation.state" in batch
