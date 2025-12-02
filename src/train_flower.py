@@ -48,25 +48,7 @@ def train(cfg):
         video_backend="pyav",
     )
     pretrained_config = hydra.utils.instantiate(cfg.model, _convert_="all")
-    train_cfg = TrainPipelineConfig(
-        policy=pretrained_config,
-        dataset=dataset_cfg,
-        batch_size=cfg.train.batch_size,
-        steps=cfg.train.steps,
-        output_dir=Path(cfg.train.output_dir),
-        job_name=cfg.train.job_name,
-        save_freq=cfg.train.save_freq,
-        seed=cfg.train.seed,
-        log_freq=cfg.train.log_freq,
-        num_workers=cfg.train.num_workers,
-        wandb=WandBConfig(
-            enable=cfg.wandb.enable,
-            project=cfg.wandb.project,
-            entity=cfg.wandb.entity,
-            mode=cfg.wandb.mode,
-        ),
-    )
-
+    pretrained_config.device = "cpu"  # set cpu for model loading, otherwise OOM Error
     policy = FlowerVLAPolicy(pretrained_config)
     checkpoint = torch.load(
         cfg.checkpoint_path,
@@ -106,6 +88,28 @@ def train(cfg):
         log.warning(f"Unexpected keys when loading checkpoint: {unexpected_keys}")
 
     log.info("Pretrained weights loaded successfully!")
+
+    pretrained_config.device = "cuda"
+
+    train_cfg = TrainPipelineConfig(
+        policy=pretrained_config,
+        dataset=dataset_cfg,
+        batch_size=cfg.train.batch_size,
+        steps=cfg.train.steps,
+        output_dir=Path(cfg.train.output_dir),
+        job_name=cfg.train.job_name,
+        save_freq=cfg.train.save_freq,
+        seed=cfg.train.seed,
+        log_freq=cfg.train.log_freq,
+        num_workers=cfg.train.num_workers,
+        wandb=WandBConfig(
+            enable=cfg.wandb.enable,
+            project=cfg.wandb.project,
+            entity=cfg.wandb.entity,
+            mode=cfg.wandb.mode,
+        ),
+    )
+
     train_cfg.pretrained_policy = policy
 
     init_logging()
