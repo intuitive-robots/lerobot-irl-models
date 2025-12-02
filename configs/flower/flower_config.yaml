@@ -1,8 +1,6 @@
 # conf/config.yaml
 defaults:
 - model: flower
-- optimizer: adamw
-- scheduler: cosine_warmup
 - _self_
 
 

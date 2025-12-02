@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -p dev_accelerated
+#SBATCH -p accelerated
 #SBATCH --mem=64G        # Total CPU RAM
 #SBATCH --gres=gpu:4     # 4 GPUs
-#SBATCH --time=00:16:00
-#SBATCH -J debug_flower
-#SBATCH -o logs/debug/%x_%j.out
-#SBATCH -e logs/debug/%x_%j.err
+#SBATCH --time=07:30:00
+#SBATCH -J train_multi_gpu
+#SBATCH -o logs/train_multi_gpu/%x_%j.out
+#SBATCH -e logs/train_multi_gpu/%x_%j.err
 
 source ~/.bashrc
 conda activate lerobot-irl-models
@@ -15,8 +15,8 @@ export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
 
 # --- CONFIGURATION ---
-NUM_GPUS=4 #check that this is correct
-GLOBAL_BATCH_SIZE=64
+NUM_GPUS=4 #4 #check that this is correct
+GLOBAL_BATCH_SIZE=64 #64
 BATCH_PER_GPU=$(($GLOBAL_BATCH_SIZE / $NUM_GPUS))
 
 # Get a unique port for this job to prevent collisions if multiple jobs run on the node
@@ -30,5 +30,4 @@ accelerate launch \
     --num_processes=$NUM_GPUS \
     --main_process_port $MASTER_PORT \
     src/train_flower.py \
-    train.batch_size=$BATCH_PER_GPU \
-    train.steps=1000 \
+    train.batch_size=$BATCH_PER_GPU

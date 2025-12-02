@@ -1,8 +1,0 @@
-# conf/scheduler/cosine_warmup.yaml
-#NOTE: THIS IS SIMPLY TAKEN FROM SMOLVLAs get_scheduler_preset method -> needs to be checked if necessary and needs to be
-#integrated into FLOWER config/ training pipeline
-_target_: lerobot.optim.schedulers.CosineDecayWithWarmupSchedulerConfig
-num_warmup_steps: 1000
-num_decay_steps: 400000
-peak_lr: 2e-5
-decay_lr: 1e-5

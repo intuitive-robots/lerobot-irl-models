@@ -102,6 +102,20 @@ return_act_chunk: false
 use_action_scale: false
 use_early_cross_fusion: true
 
+scheduler:
+  _target_: policies.flower.flower_scheduler.CosineDecayWithWarmupSchedulerFLOWERConfig #lerobot.optim.schedulers.CosineDecayWithWarmupSchedulerConfig
+  num_warmup_steps: 1000
+  num_plateau_steps: 15000
+  num_decay_steps: 40000
+  peak_lr: 2e-5
+  decay_lr: 1e-5
+
+optimizer:
+  _target_: lerobot.optim.optimizers.AdamWConfig
+  lr: 2e-5
+  betas: [0.9, 0.95]
+  eps: 1e-8
+  weight_decay: 0.01
 
 # Additional user-facing fields you may want to pass-through
 # (these are not complex objects here; the training code is expected to
