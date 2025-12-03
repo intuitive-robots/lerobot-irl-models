@@ -4,7 +4,11 @@ from typing import Dict, List
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
-from src.policies.flower.flower_scheduler import CosineDecayWithWarmupSchedulerFLOWERConfig, AdamWConfigFLOWER
+
+from src.policies.flower.flower_scheduler import (
+    AdamWConfigFLOWER,
+    CosineDecayWithWarmupSchedulerFLOWERConfig,
+)
 
 # from flower.flower_scheduler import CosineDecayWithWarmupSchedulerFLOWERConfig
 
@@ -12,9 +16,16 @@ from src.policies.flower.flower_scheduler import CosineDecayWithWarmupSchedulerF
 @PreTrainedConfig.register_subclass("flower")
 @dataclass
 class FlowerVLAConfig(PreTrainedConfig):
-    scheduler: None = None  #: CosineDecayWithWarmupSchedulerFLOWERConfig = field(default_factory=CosineDecayWithWarmupSchedulerFLOWERConfig)
+    resume: bool = False  # TODO: Think about whether we really need this
+    scheduler: CosineDecayWithWarmupSchedulerFLOWERConfig = field(
+        default_factory=CosineDecayWithWarmupSchedulerFLOWERConfig
+    )
+    optimizer: AdamWConfigFLOWER = field(default_factory=AdamWConfigFLOWER)
 
-    optimizer: AdamWConfig = field(default_factory=AdamWConfig)
+    # the type attribute is needed for the lerobot from_pretrained method to work, as the config.json stores the type attribute
+    # which is set with @PreTrainedConfig.register_subclass("flower") during training. When we load with from_pretrained and
+    # FlowerVLAConfig does not have a type attribute, this will throw an error. TODO: Think about handling this more gracefully
+    type: str = ""
 
     obs_modalities: str = "observation"
     goal_modalities: str = "task"
@@ -108,7 +119,7 @@ class FlowerVLAConfig(PreTrainedConfig):
     push_to_hub: bool = False
 
     # TODO: Handle these methods via yaml too
-    def get_optimizer_preset(self) -> AdamWConfig:
+    def get_optimizer_preset(self):
         return self.optimizer
 
     def get_scheduler_preset(self):
