@@ -43,7 +43,7 @@ from lerobot.utils.constants import (
     POLICY_PREPROCESSOR_DEFAULT_NAME,
 )
 
-from policies.flower.flower_config import FlowerVLAConfig
+from src.policies.flower.flower_config import FlowerVLAConfig
 
 
 def make_flower_pre_post_processors(

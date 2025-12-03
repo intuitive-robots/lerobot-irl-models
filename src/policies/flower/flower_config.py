@@ -4,6 +4,7 @@ from typing import Dict, List
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
+from src.policies.flower.flower_scheduler import CosineDecayWithWarmupSchedulerFLOWERConfig, AdamWConfigFLOWER
 
 # from flower.flower_scheduler import CosineDecayWithWarmupSchedulerFLOWERConfig
 

@@ -11,7 +11,8 @@ from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.policies import factory
 
-from policies.flower.processor_flower import make_flower_pre_post_processors
+from src.policies.flower.processor_flower import make_flower_pre_post_processors
+from src.policies.flower.flower_config import FlowerVLAConfig
 
 
 def my_make_pre_post_processors(policy_cfg, pretrained_path=None, **kwargs):
@@ -29,7 +30,7 @@ factory.make_pre_post_processors = my_make_pre_post_processors
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.utils.utils import init_logging
 
-from policies.flower.modeling_flower import FlowerVLAPolicy
+from src.policies.flower.modeling_flower import FlowerVLAPolicy
 
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 

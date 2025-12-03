@@ -50,6 +50,7 @@ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/test
 
 pip install 'lerobot[all]'
 pip install -r requirements.txt
+pip install -e .
 ```
 
 3. Test if it works and install remaining dependencies
