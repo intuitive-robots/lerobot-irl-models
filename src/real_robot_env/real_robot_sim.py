@@ -9,6 +9,7 @@ import einops
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
+import traceback
 
 from real_robot_env.base_sim import BaseSim
 from real_robot_env.real_robot_env import RealRobotEnv
@@ -25,6 +26,7 @@ from lerobot.rl.process import ProcessSignalHandler
 from lerobot.policies.rtc.configuration_rtc import RTCConfig
 from lerobot.configs.types import RTCAttentionSchedule
 from lerobot.utils.hub import HubMixin
+from lerobot.utils.constants import ACTION
 
 DELTA_T = 0.034
 
@@ -49,10 +51,13 @@ class EnvWrapper:
         with self.lock:
             return self.env.reset()
 
-    def image_to_tensor(self, image):
+    def image_to_tensor(self, image, device):
         # This doesn't need lock - pure computation
         # Move this method here from wherever it currently is
-        return einops.rearrange(torch.from_numpy(image), 'h w c -> c h w')
+        rgb = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
+        rgb = einops.rearrange(rgb, "c h w -> 1 1 c h w").to(device)
+
+        return rgb
     
 
 
@@ -103,8 +108,8 @@ def get_actions(
                 right_cam = obs["right_cam"]["rgb"]
                 wrist_cam = obs["wrist_cam"]["rgb"]
 
-                right_cam = env_wrapper.image_to_tensor(right_cam) #?
-                wrist_cam = env_wrapper.image_to_tensor(wrist_cam) #?
+                right_cam = env_wrapper.image_to_tensor(right_cam, cfg.device) #?
+                wrist_cam = env_wrapper.image_to_tensor(wrist_cam, cfg.device) #?
 
                 obs_dict = {
                     # "front_cam_image": front_cam,
@@ -115,16 +120,20 @@ def get_actions(
                 }
                 #cv2.imwrite(f"debug_frame_{self.i}.jpg", obs["right_cam"]["rgb"])
 
+                # Normalize inputs before predict_action_chunk (prev, it was done as a part of select_action, but we do not use that method anymore)
+                obs_dict_normalized = agent.normalize_inputs(obs_dict)
+
                 # Generate actions WITH RTC
                 actions = agent.predict_action_chunk(
-                    obs_dict,
+                    obs_dict_normalized,  # ← Use normalized version
                     inference_delay=inference_delay,
                     prev_chunk_left_over=prev_actions,
                 )
 
-                # Store original actions (before postprocessing) for RTC
-                original_actions = actions.squeeze(0).clone()
+                original_actions = actions.squeeze(0).clone()  # Normalized (for RTC)
 
+                # ✅ Unnormalize for robot
+                postprocessed_actions = agent.unnormalize_outputs({ACTION: actions})[ACTION]
                 postprocessed_actions = postprocessed_actions.squeeze(0)
 
                 new_latency = time.perf_counter() - current_time
@@ -177,9 +186,9 @@ def actor_control(
             pred_action = action_queue.get() # pred_action = agent.select_action(obs_dict)
 
             if pred_action is not None:
-                pred_action = action.cpu().numpy() # pred_action = agent.select_action(obs_dict).cpu().numpy()
-                pred_joint_pos = pred_action[0, :7]
-                pred_gripper_command = pred_action[0, -1]
+                pred_action = pred_action.cpu().numpy() # pred_action = agent.select_action(obs_dict).cpu().numpy()
+                pred_joint_pos = pred_action[:7]
+                pred_gripper_command = pred_action[-1]
                 pred_gripper_command = 1 if pred_gripper_command > 0 else -1
 
                 action = {
@@ -187,7 +196,7 @@ def actor_control(
                     "robot_hand": pred_gripper_command,
                 }
 
-                obs, *_ = env_wrapper.step(action) # I do not really need to get new obs or whatever
+                env_wrapper.step(action) # I do not really need to get new obs or whatever
 
                 action_count += 1
 
@@ -221,13 +230,6 @@ class RealRobot(BaseSim):
 
         self.i = 0
 
-    def image_to_tensor(self, image):
-
-        rgb = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
-        rgb = einops.rearrange(rgb, "c h w -> 1 1 c h w").to(self.device)
-
-        return rgb
-
     def test_agent(self, agent, cfg: DictConfig, rtc_cfg: RTCConfig):
         self.cam0 = DepthAI(  # right cam
             device_id="1844301051D9B50F00",
@@ -251,7 +253,7 @@ class RealRobot(BaseSim):
             discrete_devices=[self.cam0, self.cam1],
         )
 
-        lang_emb = torch.zeros(1, 1, 512).float().to(self.device)
+        #lang_emb = torch.zeros(1, 1, 512).float().to(self.device)
 
         logger.info("Starting trained model evaluation on real robot")
 
@@ -263,53 +265,77 @@ class RealRobot(BaseSim):
 
             while km.key not in ["s", "q"]:
                 km.pool()
-            vis = False
+
+            #vis = False
 
             signal_handler = ProcessSignalHandler(use_threads=True, display_pid=False)
             shutdown_event = signal_handler.shutdown_event
 
             if km.key == "s":
 
-                env_wrapper = EnvWrapper(agent)
+                env_wrapper = EnvWrapper(env)
                 print()
 
                 agent.reset()
-                obs, _ = env.reset()
+                env.reset()
 
                 print("Starting evaluation. Press 'd' to stop current evaluation")
 
+                # Create action queue for communication between threads
+                action_queue = ActionQueue(rtc_cfg)
+                print("Action queue created succesfully")
+
+                # Start chunk requester thread
+                get_actions_thread = Thread(
+                    target=get_actions,
+                    args=(agent, env_wrapper, action_queue, shutdown_event, cfg),
+                    daemon=True,
+                    name="GetActions",
+                )
+
+                get_actions_thread.start()
+                logger.info("Started get actions thread")
+
+                # Start action executor thread
+                actor_thread = Thread(
+                    target=actor_control,
+                    args=(env_wrapper, action_queue, shutdown_event, cfg),
+                    daemon=True,
+                    name="Actor",
+                )
+                actor_thread.start()
+                logger.info("Started actor thread")
+                
                 km.pool()
                 while km.key != "d":
                     km.pool()
-
-                    # Create action queue for communication between threads
-                    action_queue = ActionQueue(rtc_cfg)
-
-                    # Start chunk requester thread
-                    get_actions_thread = Thread(
-                        target=get_actions,
-                        args=(env_wrapper, action_queue, shutdown_event, cfg),
-                        daemon=True,
-                        name="GetActions",
-                    )
-                    get_actions_thread.start()
-                    logger.info("Started get actions thread")
-
-                    # Start action executor thread
-                    actor_thread = Thread(
-                        target=actor_control,
-                        args=(env_wrapper, action_queue, shutdown_event, cfg),
-                        daemon=True,
-                        name="Actor",
-                    )
-                    actor_thread.start()
-                    logger.info("Started actor thread")
+                    if time.time() % 10 < 0.1:  # Every ~10 seconds
+                        logger.info(f"[MAIN] Action queue size: {action_queue.qsize()}")
                     time.sleep(DELTA_T)
 
                 shutdown_event.set()
+
+                if get_actions_thread and get_actions_thread.is_alive():
+                    logger.info("Waiting for get_actions thread...")
+                    get_actions_thread.join(timeout=5.0)
+
+                if actor_thread and actor_thread.is_alive():
+                    logger.info("Waiting for actor thread...")
+                    actor_thread.join(timeout=5.0)
+                
+                if agent.model.rtc_processor and agent.model.rtc_processor.is_debug_enabled():
+                    debug_steps = agent.model.rtc_processor.get_all_debug_steps()
+                    logger.info(f"Collected {len(debug_steps)} debug steps")
+
+                    # Save debug data
+                    import pickle
+                    with open("rtc_debug.pkl", "wb") as f:
+                        pickle.dump([step.to_dict() for step in debug_steps], f)
+                    logger.info("Debug data saved to rtc_debug.pkl")
+
+
                 print()
                 logger.info("Evaluation done. Resetting robots")
-
                 env.reset()
 
         print()

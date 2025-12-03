@@ -17,6 +17,8 @@ from tqdm import tqdm
 from policies.flower.flower_config import FlowerVLAConfig
 from policies.flower.modeling_flower import FlowerVLAPolicy
 from real_robot_env.real_robot_sim import RealRobot
+from lerobot.policies.rtc.configuration_rtc import RTCConfig
+from lerobot.configs.types import RTCAttentionSchedule
 
 log = logging.getLogger(__name__)
 
@@ -157,23 +159,30 @@ def main(cfg: DictConfig) -> None:
         else:
             log.info("⚠️  Model loaded with warnings (see above)")
 
+    #### Up until here everything is from original code, so it should work fine        
+
     # Turn on RTC
     rtc_cfg = RTCConfig(
           enabled=cfg.rtc.enabled,
           execution_horizon=cfg.rtc.execution_horizon,
           max_guidance_weight=cfg.rtc.max_guidance_weight,
           prefix_attention_schedule=RTCAttentionSchedule[cfg.rtc.prefix_attention_schedule.upper()],
+        debug=True,           # ← Add this
+        debug_maxlen=100     # ← Add this
       )
     
     agent.config.rtc_config = rtc_cfg
+    log.info("RTC config setup succesfully")
 
     # Init RTC processort, as by default if RTC disabled in the config
     # The processor won't be created
     agent.init_rtc_processor()
+    log.info("RTC initiallized  succesfully")
 
     agent = agent.to(cfg.device)
     agent.eval()
 
+    log.info("Agent put into evaluation mode succesfully")
 
     log.info("Initializing RealRobot environment...")
     env_sim = RealRobot(device=cfg.device)

@@ -151,7 +151,9 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         return self.parameters()
 
     @torch.no_grad()
-    def predict_action_chunk(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def predict_action_chunk(self, batch: Dict[str, torch.Tensor], inference_delay: int | None = None,
+      prev_chunk_left_over: torch.Tensor | None = None,
+      execution_horizon: int | None = None,) -> torch.Tensor:
         """
         Predict a chunk of actions given environment observations.
 
@@ -174,8 +176,11 @@ class FlowerVLAPolicy(PreTrainedPolicy):
         )
 
         # Sample actions
-        action_seq = self.model.sample_actions(noise, cond, inference=True)
-        action_seq = self.unnormalize_outputs({ACTION: action_seq})[ACTION]
+        action_seq = self.model.sample_actions(noise, cond, inference=True,inference_delay=inference_delay,
+          prev_chunk_left_over=prev_chunk_left_over,
+          execution_horizon=execution_horizon)
+        # No normalization to use it only when I need
+        #action_seq = self.unnormalize_outputs({ACTION: action_seq})[ACTION]
         return action_seq  # [B, T, action_dim]
 
     def reset(self) -> None:
@@ -986,7 +991,9 @@ class FlowerModel(nn.Module):
 
     # === Sampling Methods ===
     def sample_actions(
-        self, z: torch.Tensor, cond: Dict[str, torch.Tensor], inference: bool = False
+        self, z: torch.Tensor, cond: Dict[str, torch.Tensor], inference: bool = False, inference_delay: int | None = None,
+      prev_chunk_left_over: torch.Tensor | None = None,
+      execution_horizon: int | None = None
     ) -> torch.Tensor:
         """
         Samples actions from the DiT model.
@@ -1001,7 +1008,7 @@ class FlowerModel(nn.Module):
         if hasattr(self, "use_dopri5") and self.use_dopri5:
             return self._sample_with_adaptive_solver(z, cond)
         else:
-            return self._sample_with_fixed_steps(z, cond, inference)
+            return self._sample_with_fixed_steps(z, cond, inference, inference_delay, prev_chunk_left_over, execution_horizon)
 
     def _sample_with_adaptive_solver(
         self, z: torch.Tensor, cond: Dict[str, torch.Tensor]
@@ -1052,7 +1059,8 @@ class FlowerModel(nn.Module):
         return z.clamp(-1, 1)
 
     def _sample_with_fixed_steps(
-        self, z: torch.Tensor, cond: Dict[str, torch.Tensor], inference: bool = False
+        self, z: torch.Tensor, cond: Dict[str, torch.Tensor], inference: bool = False, inference_delay: int | None = None, prev_chunk_left_over: torch.Tensor | None = None,
+      execution_horizon: int | None = None
     ) -> torch.Tensor:
         """
         Samples actions using fixed-step Euler integration.
@@ -1095,22 +1103,32 @@ class FlowerModel(nn.Module):
             t_val = i / steps
             t_tensor = torch.full((b,), t_val, device=device)
 
-            # Get conditional velocity
-            vc = self.dit_forward(z, t_tensor, cond)
+            # Define closure for RTC
+            def denoise_step_partial(input_z):
+                vc = self.dit_forward(input_z, t_tensor, cond)
+                if apply_cfg:
+                    vu = self.dit_forward(input_z, t_tensor, null_cond)
+                    vc = vu + self.cfg_lambda * (vc - vu)
+                return vc
 
-            # Apply CFG if needed
-            if apply_cfg:
-                vu = self.dit_forward(z, t_tensor, null_cond)
-                vc = vu + self.cfg_lambda * (vc - vu)
+            # ✅ ADD RTC INTEGRATION HERE
+            if self._rtc_enabled() and inference:
+                vc = self.rtc_processor.denoise_step(
+                    x_t=z,
+                    prev_chunk_left_over=prev_chunk_left_over,
+                    inference_delay=inference_delay,
+                    time=t_val,  # Normalized time [0,1]
+                    original_denoise_step_partial=denoise_step_partial,
+                    execution_horizon=execution_horizon,
+                )
+            else:
+                vc = denoise_step_partial(z)
 
             # Euler step
             z = z - dt_tensor * vc
 
             # Apply action masking
-            for (
-                action_name,
-                action_idx,
-            ) in self.action_space_index.action_spaces.items():
+            for action_name, action_idx in self.action_space_index.action_spaces.items():
                 mask = action_type == action_idx
                 if mask.any():
                     adim = self.action_space_index.get_action_dim(action_idx)
@@ -1125,3 +1143,11 @@ class FlowerModel(nn.Module):
         self.rollout_step_counter = 0
         self.pred_action_seq = None
         self.eval()
+
+    def _rtc_enabled(self) -> bool:
+        """Check if RTC is enabled."""
+        return (
+            hasattr(self, 'rtc_processor') and
+            self.rtc_processor is not None and
+            self.rtc_processor.rtc_config.enabled
+        )
