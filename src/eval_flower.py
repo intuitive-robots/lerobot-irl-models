@@ -14,8 +14,8 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from policies.flower.flower_config import FlowerVLAConfig
-from policies.flower.modeling_flower import FlowerVLAPolicy
+from src.policies.flower.flower_config import FlowerVLAConfig
+from src.policies.flower.modeling_flower import FlowerVLAPolicy
 from real_robot_env.real_robot_sim import RealRobot
 
 log = logging.getLogger(__name__)
