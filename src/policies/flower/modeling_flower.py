@@ -93,6 +93,19 @@ class FlowerVLAPolicy(PreTrainedPolicy):
             model_value = getattr(self, "model", None)
             if model_value is not None:
                 model_value.rtc_processor = self.rtc_processor
+
+            # ✅ ADD VALIDATION
+            logger.info(f"[INIT] RTC processor initialized")
+            logger.info(f"[INIT]   enabled: {self.config.rtc_config.enabled}")
+            logger.info(f"[INIT]   execution_horizon: {self.config.rtc_config.execution_horizon}")
+            logger.info(f"[INIT]   max_guidance_weight: {self.config.rtc_config.max_guidance_weight}")
+            logger.info(f"[INIT]   attention_schedule: 
+                {self.config.rtc_config.prefix_attention_schedule}")
+
+            # Verify model has rtc_processor
+            assert hasattr(self.model, 'rtc_processor'), "Model missing rtc_processor attribute"
+            assert self.model.rtc_processor is not None, "Model rtc_processor is None"
+            logger.info(f"[INIT] ✓ Model rtc_processor verified")
     
     def _rtc_enabled(self) -> bool:
         return self.config.rtc_config is not None and self.config.rtc_config.enabled
@@ -242,6 +255,8 @@ class FlowerModel(nn.Module):
             if hasattr(config, "device") and config.device
             else ("cuda" if torch.cuda.is_available() else "cpu")
         )
+
+        self.rtc_processor = None
 
         # Initialize configuration groups.
         self._init_modalities(
