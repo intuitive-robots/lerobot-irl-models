@@ -49,7 +49,8 @@ class FlowerVLAPolicy(PreTrainedPolicy):
     def __init__(
         self,
         config: FlowerVLAConfig,
-        dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None,
+        dataset_stats: dict[str, dict[str, torch.Tensor]]
+        | None = None,  # NOTE: This is not passed by lerobot at initialization
     ):
         """
         Initialize FlowerVLA Policy.
