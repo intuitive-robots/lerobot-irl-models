@@ -415,10 +415,12 @@ def create_lerobot_dataset(
 
 def main():
     # Configuration - modify these variables as needed
-    repo_id = "test"  # HF repo id (e.g. user/dataset). Required if push_to_hub=True
+    repo_id = (
+        "pepper_only"  # HF repo id (e.g. user/dataset). Required if push_to_hub=True
+    )
     raw_dir = Path(f"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/raw/{repo_id}")
     local_dir = Path(
-        f"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/{repo_id}_new"
+        f"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/{repo_id}"
     )
     push_to_hub = False
     follower_subdir = (
