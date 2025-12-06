@@ -59,12 +59,6 @@ class CosineDecayWithWarmupSchedulerFLOWERConfig(LRSchedulerConfig):
     peak_lr: float
     decay_lr: float
 
-    # the type attribute is needed for the lerobot from_pretrained method to work, as the config.json stores the type attribute
-    # which is set with @PreTrainedConfig.register_subclass("flower") during training. When we load with from_pretrained and
-    # CosineDecayWithWarmupSchedulerFLOWERConfig does not have a type attribute, this will throw an error.
-    # TODO: Think about handling this more gracefully
-    type: str = ""
-
     def build(self, optimizer: Optimizer, num_training_steps: int) -> LambdaLR:
         # Auto-scale scheduler parameters if training steps are shorter than configured decay steps
         actual_warmup_steps = self.num_warmup_steps
@@ -141,12 +135,3 @@ def load_scheduler_state(scheduler: LRScheduler, save_dir: Path) -> LRScheduler:
     )
     scheduler.load_state_dict(state_dict)
     return scheduler
-
-
-@LRSchedulerConfig.register_subclass("adamw_flower")
-@dataclass
-class AdamWConfigFLOWER(AdamWConfig):
-    # the type attribute is needed for the lerobot from_pretrained method to work, as the config.json stores the type attribute
-    # which is set with @PreTrainedConfig.register_subclass("flower") during training. When we load with from_pretrained and
-    # AdamWConfigFLOWER does not have a type attribute, this will throw an error. TODO: Think about handling this more gracefully
-    type: str = ""
