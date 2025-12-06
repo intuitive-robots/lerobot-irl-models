@@ -52,7 +52,10 @@ pip install 'lerobot[all]'
 pip install -r requirements.txt
 pip install -e .
 ```
-
+Make sure to also install the latest lerobot main version with xVLA specifically:
+```bash pip install git+https://github.com/huggingface/lerobot``` (i installed version lerobot version 0.4.3 with this)
+At a later point, it might be included into a release:
+```bash pip install --upgrade lerobot[xvla] ```
 3. Test if it works and install remaining dependencies
 
 
