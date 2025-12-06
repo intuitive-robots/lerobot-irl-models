@@ -11,12 +11,12 @@ import seaborn as sns
 import torch
 import torchvision.transforms as transforms
 import wandb
+from lerobot.configs.policies import PreTrainedConfig
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from omegaconf import DictConfig
 from PIL import Image
 from tqdm import tqdm
 
-from src.policies.flower.flower_config import FlowerVLAConfig
 from src.policies.flower.modeling_flower import FlowerVLAPolicy
 
 log = logging.getLogger(__name__)
@@ -115,13 +115,20 @@ def main(cfg: DictConfig) -> None:
     # 4. Build the agent *exactly* as during training and load the checkpoint
     # ---------------------------------------------------------------------
 
-    config = FlowerVLAConfig()
+    config = PreTrainedConfig.from_pretrained(
+        pretrained_name_or_path=os.path.dirname(cfg.checkpoint_path)
+    )
     # Store dataset_stats in config so it's available when Policy is instantiated
     config._dataset_stats = dataset_stats
     agent = FlowerVLAPolicy(config, dataset_stats=dataset_stats)
 
     from safetensors.torch import load_file
 
+    # NOTE: The following code is redundant because we already ensured this during training
+    # and are only loading the lerobot model here -> mappings were already done during training
+    # so the model.safetensors file does not include any "agent." key and the mlps have also
+    # been already mapped.
+    # instead we could even try, to directly do: agent = FlowerVLAPolicy.from_pretrained(cfg.checkpoint_path, config) -> need to check with regards to dataset_stats
     state_dict = load_file(cfg.checkpoint_path, device=str(cfg.device))
     new_state_dict = {}
     for key, value in state_dict.items():
