@@ -25,12 +25,13 @@ dataset:
   dataset_path: "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/multi_task_11" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
 
 train:
+  resume: false
   checkpoint_path: "/home/hk-project-p0024638/usmrd/model_weights/flower_pret/360000_model_weights.pt"
-  batch_size: 64
-  steps: 40000
-  save_freq: 8000
+  batch_size: 64 #40000
+  steps: 60000 #100000
+  save_freq: 20000
   seed: 42
-  device: cuda
+  device: cuda #not sure if neeeded
   num_workers: 4
   log_freq: 100
   output_dir: ${base_output_dir}/model_outputs
