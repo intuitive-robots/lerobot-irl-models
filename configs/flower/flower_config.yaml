@@ -6,8 +6,8 @@ defaults:
 
 # Top-level metadata + short-cuts
 base_output_dir: ./output/train/flower/${now:%Y-%m-%d}/${now:%H-%M-%S}
-repo_id: ${dataset.repo_id}
-dataset_path: ${dataset.dataset_path}
+repo_id: "pepper_only"
+dataset_path: "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/multi_task_11" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
 checkpoint_path: ${train.checkpoint_path}
 
 hydra:
@@ -19,10 +19,6 @@ wandb:
   project: "lerobot-training"
   entity: "usmrd"
   mode: "online"   # options: online, offline, disabled
-
-dataset:
-  repo_id: "pepper_only" #"multi_task_11" #"pepper_only"
-  dataset_path: "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/multi_task_11" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
 
 train:
   resume: false
