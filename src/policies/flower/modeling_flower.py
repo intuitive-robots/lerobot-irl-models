@@ -417,6 +417,12 @@ class FlowerModel(nn.Module):
 
         self.processor = AutoProcessor.from_pretrained(vlm_path, trust_remote_code=True)
         self.tokenizer = self.processor.tokenizer
+        if (
+            self.tokenizer.pad_token is None
+        ):  # from flower_vla_pret but not really needed here
+            print("setting padding and eos token")
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.prompt_embeds = self._create_prompt_embed("<Flow>").to(self.device)
         del self.vlm.language_model.model.decoder, self.vlm.language_model.lm_head
         self.vlm_token_dropout = nn.Dropout(self.token_dropout)
@@ -622,9 +628,12 @@ class FlowerModel(nn.Module):
 
         if "task" in batch:
             task_text = batch["task"]
-            # task_text is already a list of strings
-            if not isinstance(task_text, list):
+            # SAFEGUARD: Ensure it is a list/tuple of strings matching batch size
+            if isinstance(task_text, str):
+                # Handle edge case where it might be a single string (e.g. batch size 1 or broadcasting)
                 task_text = [task_text] * B
+            elif isinstance(task_text, tuple):
+                task_text = list(task_text)
 
             # Tokenize the text
             tokenized = self.tokenizer(
