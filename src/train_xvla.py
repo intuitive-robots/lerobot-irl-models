@@ -19,8 +19,7 @@ import torch
 from lerobot.configs.default import DatasetConfig, WandBConfig
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.train import TrainPipelineConfig
-from lerobot.policies import factory
-from lerobot.policies.xvla.configuration_xvla import XVLAConfig
+from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.utils.utils import init_logging
 
@@ -46,6 +45,18 @@ def train(cfg):
         cli_overrides=[f"--{k}={str(v).lower()}" for k, v in cfg.policy.items()],
     )
 
+    # Issue: when using the pretrained config, it already contains an empty camera key -> this does not fit with their logic,
+    # therefore we need to force these input_features
+    pretrained_config.input_features = {
+        "observation.images.image": PolicyFeature(
+            type=FeatureType.VISUAL, shape=(3, 256, 256)
+        ),
+        "observation.images.image2": PolicyFeature(
+            type=FeatureType.VISUAL, shape=(3, 256, 256)
+        ),
+        "observation.state": PolicyFeature(type=FeatureType.STATE, shape=(8,)),
+    }
+
     train_cfg = TrainPipelineConfig(
         policy=pretrained_config,
         dataset=dataset_cfg,
@@ -58,8 +69,7 @@ def train(cfg):
         log_freq=cfg.train.log_freq,
         wandb=WandBConfig(**cfg.wandb),
         rename_map={
-            "observation.images.left_cam": "observation.images.empty_camera_0",
-            "observation.images.right_cam": "observation.image.image",
+            "observation.images.right_cam": "observation.images.image",
             "observation.images.wrist_cam": "observation.images.image2",
         },
     )
@@ -70,25 +80,3 @@ def train(cfg):
 
 if __name__ == "__main__":
     train()
-
-
-# python -m lerobot.scripts.lerobot_train \
-#     --dataset.root=$TMPDIR/$DATASET_ID \
-#     --dataset.repo_id=$DATASET_ID \
-#     --dataset.video_backend="pyav" \
-#     --output_dir=$OUTPUT_DIR \
-#     --job_name=xvla_training \
-#     --wandb.enable=False \
-#     --wandb.project="xvla-training" \
-#     --wandb.entity="usmrd" \
-#     --wandb.mode="online" \
-#     --policy.push_to_hub=False \
-#     --policy.pretrained_path="lerobot/xvla-base" \
-#     --steps=300 \
-#     --policy.device=cuda \
-#     --policy.freeze_vision_encoder=True \
-#     --policy.freeze_language_encoder=True \
-#     --policy.train_policy_transformer=True \
-#     --policy.train_soft_prompts=True \
-#     --policy.action_mode="joint" \
-#     --policy.action_mode=auto

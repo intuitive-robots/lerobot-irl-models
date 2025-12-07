@@ -15,7 +15,7 @@ hydra:
     dir: ${base_output_dir}/hydra
 
 wandb:
-  enable: false #true
+  enable: true
   project: "xvla-training"
   entity: "usmrd"
   mode: "online"
@@ -27,8 +27,12 @@ policy:
   freeze_language_encoder: true
   train_policy_transformer: true
   train_soft_prompts: true
-  action_mode: "auto"
-
+  action_mode: "franka_joint7" #auto
+  num_image_views: 2
+  empty_cameras: 1 #NOTE: this is very confusing in the documentation but basically we can not have empty_camera already in the input_features
+# I think the issue is that the pretrained config that gets saved, saves the new values therefore it adds empty_camerea to the input_features
+# even though we should not set them (?)
+  scheduler_decay_steps: 40000
 
 train:
   # resume: false
@@ -45,7 +49,3 @@ train:
   push_to_hub: false
   # gradient_checkpointing: true
   # compile_model: false
-  rename_map:
-    observation.images.left_cam: "observation.images.empty_camera_0"
-    observation.images.right_cam: "observation.image.image"
-    observation.images.wrist_cam: "observation.images.image2"
