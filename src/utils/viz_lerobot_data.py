@@ -3,7 +3,7 @@ This script can be used to visualize lerobot data stored on the horeka cluster. 
 support GUI applications, the GUI output needs to be streamed to a local machine, see: https://www.nhr.kit.edu/userdocs/horeka/visualization/
 
 * First Download TurboVNC on your local machine
-* Log in to the cluster and run: start_vnc_desktop
+* Log in to the cluster and run: start_vnc_desktop -n 1 --ppn 4 -t 00:20:00
 * On your local machine start TurboVNC and connect using the information displayed by the start_vnc_desktop command
 * Once you sucessfully connected, a remote desktop will open.
 * On the remote desktop, run this script
