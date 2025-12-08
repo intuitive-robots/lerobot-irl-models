@@ -27,18 +27,20 @@ policy:
   freeze_language_encoder: true
   train_policy_transformer: true
   train_soft_prompts: true
-  action_mode: "franka_joint7" #auto
+  action_mode: "auto" #"custom_joint8" #"auto"
+  #CAREFUL: "franka_joint7" does not work, in the xvla implementation, only 7 actions are predicted (no gripper action)
+  # "auto" allows to use any action dim < 20 but calculates a loss over joints (robot actions) and gripper -> do we want to calculate loss separately?
   num_image_views: 2
   empty_cameras: 1 #NOTE: this is very confusing in the documentation but basically we can not have empty_camera already in the input_features
 # I think the issue is that the pretrained config that gets saved, saves the new values therefore it adds empty_camerea to the input_features
 # even though we should not set them (?)
-  scheduler_decay_steps: 40000
+  scheduler_decay_steps: 30000
 
 train:
   # resume: false
   # checkpoint_path: "lerobot/xvla-base"
   batch_size: 64 #40000
-  steps: 60000 #100000
+  steps: 40000 #100000
   save_freq: 20000
   seed: 42
   # device: cuda #not sure if neeeded

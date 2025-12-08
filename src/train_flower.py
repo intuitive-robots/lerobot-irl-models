@@ -54,6 +54,7 @@ def train(cfg):
     # TODO: make sure that correct device types are set to avoid OOM errors when instantiating the policy
     # and passing it to the accelerator
     if cfg.train.resume:
+        # When resuming: Need to check whether the optimizer and scheduler are loaded correctly, maybe we need TrainPipelineConfig for that
         pretrained_config = FlowerVLAConfig.from_pretrained(
             pretrained_name_or_path=cfg.checkpoint_path
         )
