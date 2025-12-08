@@ -163,7 +163,7 @@ def report_and_plot_metrics(all_episode_metrics):
     for dim in range(num_dims):
         offset = 0
         ax = axes[dim, 0]
-        for i in selected_indices:
+        for j, i in enumerate(selected_indices):
             ep = all_episode_metrics[i]
             n = ep["predictions"].shape[0]
             rng = range(offset, offset + n)
@@ -176,10 +176,27 @@ def report_and_plot_metrics(all_episode_metrics):
                 ls="--",
                 lw=1.5,
             )
-            if i < len(selected_indices) - 1:
+            # Add Episode number text to plot
+            y_min, y_max = ax.get_ylim()
+            y_pos = y_min + (y_max - y_min) * 0.95
+            ax.text(
+                x=offset,  # X-position is the start of the episode
+                y=y_pos,  # Y-position is near the top of the plot
+                s=f"Ep: {i}",  # The text string (e.g., "Ep: 42")
+                color="purple",
+                fontsize=10,
+                verticalalignment="top",
+                horizontalalignment="left",
+            )
+
+            # FIX: Check if the current sampled index (j) is NOT the last one
+            if j < len(selected_indices) - 1:
                 ax.axvline(x=offset + n, color="gray", ls=":", alpha=0.5)
             offset += n
-        ax.set_title(f"Dim {dim} - First {len(selected_indices)} Episodes Concatenated")
+
+        ax.set_title(
+            f"Dim {dim} -  {len(selected_indices)} Randomly Sampled Episodes Concatenated"
+        )
         ax.legend(
             [Line2D([0], [0], color="blue"), Line2D([0], [0], color="orange", ls="--")],
             ["GT", "Pred"],
@@ -215,7 +232,7 @@ def report_and_plot_metrics(all_episode_metrics):
         ax.fill_between(t, g_mean - g_std, g_mean + g_std, color="b", alpha=0.2)
         ax.plot(t, p_mean, "orange", ls="--", label="Pred Mean")
         ax.fill_between(t, p_mean - p_std, p_mean + p_std, color="orange", alpha=0.2)
-        ax.set_title(f"Dim {dim} - Average Trajectory")
+        ax.set_title(f"Dim {dim} - Average Trajectory over {n_total} Episodes")
         ax.legend()
 
     plt.tight_layout()
@@ -311,7 +328,7 @@ def eval_open_loop():
     This replaces `eval_main` from the standard script but keeps the setup steps identical.
     """
     init_logging()
-    eval_n_episodes = 15  # 10 #00_000
+    eval_n_episodes = 10  # 30  # 10 #00_000
     pretrained_path = "/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/xvla/2025-12-07/17-56-59/model_outputs/checkpoints/020000/pretrained_model"
     # cli_overrides = parser.get_cli_overrides("policy")
     # policy_cfg = PreTrainedConfig.from_pretrained(pretrained_name_or_path=pretrained_path) #, cli_overrides=cli_overrides)
@@ -427,8 +444,11 @@ def eval_open_loop():
     # Step 5: Evaluation Loop (The Rollout Replacement)
     # -------------------------------------------------------------------------
     # Limit number of episodes if requested
-    num_episodes = min(eval_n_episodes, dataset.num_episodes)
-    log.info(f"Starting Open Loop Evaluation on {dataset.num_episodes} episodes.")
+    num_episodes_to_eval = min(eval_n_episodes, dataset.num_episodes)
+    all_episode_indices = list(range(dataset.num_episodes))
+    sampled_episode_indices = random.sample(all_episode_indices, num_episodes_to_eval)
+    log.info(f"Starting Open Loop Evaluation on {dataset.num_episodes} total episodes.")
+    log.info(f"Randomly sampling and evaluating {num_episodes_to_eval} episodes.")
     all_episode_metrics = []
 
     # breakpoint()
@@ -452,7 +472,7 @@ def eval_open_loop():
     #     loss, output_dict = policy.forward(batch_preproc)
 
     # Iterate through episodes
-    for episode_idx in tqdm(range(num_episodes), desc="Evaluating Episodes"):
+    for episode_idx in tqdm(sampled_episode_indices, desc="Evaluating Episodes"):
 
         # Get start/end indices for this specific episode
         from_idx = dataset.meta.episodes[episode_idx]["dataset_from_index"]
