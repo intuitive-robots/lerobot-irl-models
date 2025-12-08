@@ -23,6 +23,8 @@ from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.scripts.lerobot_train import train as lerobot_train
 from lerobot.utils.utils import init_logging
 
+# from src.policies.xvla.custom_action_space import CustomJointActionSpace #keep this
+
 os.environ["LEROBOT_VIDEO_BACKEND"] = "pyav"
 
 project_root = Path(__file__).parent.parent
