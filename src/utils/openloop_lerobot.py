@@ -330,24 +330,23 @@ def eval_open_loop():
     init_logging()
     eval_n_episodes = 10  # 30  # 10 #00_000
     pretrained_path = "/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/xvla/2025-12-07/17-56-59/model_outputs/checkpoints/020000/pretrained_model"
-    # cli_overrides = parser.get_cli_overrides("policy")
-    # policy_cfg = PreTrainedConfig.from_pretrained(pretrained_name_or_path=pretrained_path) #, cli_overrides=cli_overrides)
-    # policy_cfg.pretrained_path = Path(pretrained_path)
-    # log.info(f"Successfully loaded policy of type {policy_cfg.type} from {pretrained_path}")
-    # logging.info(pformat(asdict(policy_cfg)))
-    # breakpoint()
-    # Load directly TrainPipelineConfig -> should be the same as PreTrainedConfig (train_config.json should contain the
-    # same as config.json) -> check this
+
+    # -------------------------------------------------------------------------
+    # Step 1: Load Policy Config, Overwrite Selected Values and Set Device & Seed
+    # -------------------------------------------------------------------------
+    # TODO: Here we directly load train_config.json from the checkpoint directory using TrainPipelineConfig
+    # instead of config.json via PreTrainedConfig. We should ensure that both are the same
     train_cfg = TrainPipelineConfig.from_pretrained(
         pretrained_name_or_path=pretrained_path
     )  # , cli_overrides=cli_overrides)
     train_cfg.policy.pretrained_path = Path(pretrained_path)
+
+    # TODO: fix the hardcoding of following values (e.g. root needs to be overwritten,
+    # because the training config stores the datapath to the TMPDIR)
     train_cfg.dataset.root = (
         "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
     )
     if any(["empty_camera" in key for key in train_cfg.policy.input_features]):
-        # TODO: This is an issue with XVLA where the final training config contains
-        # calculated num_image_views, empty_cameras etc -> find better fix
         train_cfg.policy.input_features = {
             "observation.images.image": PolicyFeature(
                 type=FeatureType.VISUAL, shape=(3, 256, 256)
@@ -360,14 +359,11 @@ def eval_open_loop():
         train_cfg.policy.num_views = 2
         train_cfg.policy.empty_camera = 1
 
-    # TODO: Think about setting imagetransforms to NONE
+    # TODO: Think about not using image transforms
     train_cfg.dataset.image_transforms.enable = False
     train_cfg.policy.action_mode = "auto"  # "custom_joint8"
     logging.info(pformat(asdict(train_cfg)))
 
-    # -------------------------------------------------------------------------
-    # Step 1: Device & Seed (Identical to lerobot-eval)
-    # -------------------------------------------------------------------------
     device = get_safe_torch_device(train_cfg.policy.device, log=True)
     torch.backends.cudnn.benchmark = True
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -382,7 +378,6 @@ def eval_open_loop():
     # -------------------------------------------------------------------------
     # Step 3: Make Policy (Identical to lerobot-eval)
     # -------------------------------------------------------------------------
-    # This automatically loads config.json, model.safetensors, and instantiates the class.
     log.info("Loading Policy...")
     if isinstance(train_cfg.policy, FlowerVLAConfig):
         # Need to call FLOWER specific policy maker and preprocessor
@@ -392,7 +387,7 @@ def eval_open_loop():
         pass
     policy = make_policy(
         cfg=train_cfg.policy,
-        env_cfg=None,  # No environment config needed for open-loop
+        env_cfg=None,
         ds_meta=dataset.meta,
         rename_map=train_cfg.rename_map,
     )
@@ -403,11 +398,6 @@ def eval_open_loop():
     # Step 4: Make Processors (Identical to lerobot-eval)
     # -------------------------------------------------------------------------
     # This creates the exact normalization/un-normalization pipeline used in training.
-    # We override the device to ensure tensors are moved to GPU before inference.
-    # preprocessor_overrides = {
-    #     "device_processor": {"device": str(device)},
-    #     "rename_observations_processor": {"rename_map": train_cfg.rename_map},
-    # }
     processor_kwargs = {}
     postprocessor_kwargs = {}
     if train_cfg.policy.pretrained_path is not None:
@@ -450,26 +440,6 @@ def eval_open_loop():
     log.info(f"Starting Open Loop Evaluation on {dataset.num_episodes} total episodes.")
     log.info(f"Randomly sampling and evaluating {num_episodes_to_eval} episodes.")
     all_episode_metrics = []
-
-    # breakpoint()
-    # dataloader = torch.utils.data.DataLoader(
-    #     dataset,
-    #     num_workers=4,
-    #     batch_size=16,
-    #     shuffle=True,
-    #     sampler=None,
-    #     pin_memory=device.type == "cuda",
-    #     drop_last=False,
-    #     prefetch_factor=2 if 4> 0 else None,
-    # )
-    # from lerobot.datasets.utils import cycle
-    # dl_iter = cycle(dataloader)
-
-    # for _ in range(10):
-    #     breakpoint()
-    #     batch = next(dl_iter)
-    #     batch_preproc = preprocessor(batch)
-    #     loss, output_dict = policy.forward(batch_preproc)
 
     # Iterate through episodes
     for episode_idx in tqdm(sampled_episode_indices, desc="Evaluating Episodes"):
@@ -546,6 +516,4 @@ def eval_open_loop():
 
 
 if __name__ == "__main__":
-    # init_logging()
-    # register_third_party_plugins()
     eval_open_loop()
