@@ -61,7 +61,7 @@ def main(cfg: DictConfig) -> None:
 
     dataset_stats = None
 
-    default_stats_path = "/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
+    default_stats_path = cfg.stats_path#"/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
     if os.path.exists(default_stats_path):
         log.info(f"Loading dataset stats from default path: {default_stats_path}")
         import json
