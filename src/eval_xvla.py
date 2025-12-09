@@ -18,17 +18,14 @@ import wandb
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.datasets.factory import make_dataset
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.factory import make_policy, make_pre_post_processors
-from lerobot.policies.pretrained import PreTrainedPolicy
-from lerobot.processor.pipeline import PolicyProcessorPipeline
 from lerobot.utils.random_utils import set_seed  # before: from lerobot.utilt.utils
 from lerobot.utils.utils import get_safe_torch_device, init_logging
 from omegaconf import DictConfig, OmegaConf
 
 from src.real_robot_env.utils.sanity_check import sanity_check_eval
 
-# from src.real_robot_env.real_robot_sim import RealRobot
+from src.real_robot_env.real_robot_sim import RealRobot
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +48,7 @@ def set_seed_everywhere(seed):
 def main(cfg: DictConfig) -> None:
     cfg.seed = 42  # TODO: remove, check seed
     set_seed_everywhere(cfg.seed)
-    pretrained_path = "/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/xvla/2025-12-07/17-56-59/model_outputs/checkpoints/020000/pretrained_model"
+    pretrained_path = "/home/irl-admin/model_weights/xvla_12_07/020000"
     task_instruction = "Pick up the bell pepper and place it in the bowl."
     # -------------------------------------------------------------------------
     # Step 1: Load Policy Config, Overwrite Selected Values and Set Device & Seed
@@ -66,7 +63,7 @@ def main(cfg: DictConfig) -> None:
     # TODO: fix the hardcoding of following values (e.g. root needs to be overwritten,
     # because the training config stores the datapath to the TMPDIR)
     train_cfg.dataset.root = (
-        "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
+        "/home/irl-admin/data_collection/lerobot/pepper_only"
     )
     if any(["empty_camera" in key for key in train_cfg.policy.input_features]):
         train_cfg.policy.input_features = {
@@ -152,13 +149,13 @@ def main(cfg: DictConfig) -> None:
 
     log.info("Initializing RealRobot environment...")
 
-    # env_sim = RealRobot(device=cfg.device)
+    env_sim = RealRobot(device=cfg.device)
 
     log.info("Starting evaluation on real robot...")
-    sanity_check_eval(
-        policy, preprocessor, postprocessor, dataset
-    )  # use this to run sanity check on eval
-    # env_sim.test_agent(policy, task_instruction, preprocessor, postprocessor)
+    # sanity_check_eval(
+    #     policy, preprocessor, postprocessor, dataset
+    # )  # use this to run sanity check on eval
+    env_sim.test_agent(policy, task_instruction, preprocessor, postprocessor)
 
     log.info("Evaluation completed")
     wandb.finish()
