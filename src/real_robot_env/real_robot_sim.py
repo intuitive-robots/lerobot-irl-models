@@ -129,11 +129,12 @@ class RealRobot(BaseSim):
 
                     if preprocessor:
                         obs_dict = preprocessor(obs_dict)
-                    pred_action = agent.select_action(obs_dict).cpu().numpy()
+                    
+                    pred_action = agent.select_action(obs_dict)
+                    
                     if postprocessor:
-                        pred_action = postprocessor(pred_action)
+                        pred_action = postprocessor(pred_action).cpu().numpy()
 
-                    pred_action = agent.select_action(obs_dict).cpu().numpy()
                     # print(f"Predicted action: {pred_action}")
                     pred_joint_pos = pred_action[0, :7]
                     pred_gripper_command = pred_action[0, -1]
