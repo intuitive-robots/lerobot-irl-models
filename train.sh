@@ -17,7 +17,6 @@ conda activate lerobot-irl-models
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export TOKENIZERS_PARALLELISM=false
 export HYDRA_FULL_ERROR=1
-export WANDB_LOG_MODEL=false #do not upload model to wandb (storage limitations)
 
 # Set the master port for distributed training (DDP)
 export MASTER_PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))

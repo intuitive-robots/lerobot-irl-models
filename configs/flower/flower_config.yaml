@@ -19,6 +19,7 @@ wandb:
   project: "lerobot-training"
   entity: "usmrd"
   mode: "online"   # options: online, offline, disabled
+  disable_artifact: true
 
 train:
   resume: false

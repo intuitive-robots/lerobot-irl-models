@@ -19,6 +19,7 @@ wandb:
   project: "xvla-training"
   entity: "usmrd"
   mode: "online"
+  disable_artifact: true
 
 policy:
   push_to_hub: false
