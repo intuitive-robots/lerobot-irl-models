@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from real_robot_env.robot.hardware_audio import AudioInterface
 from real_robot_env.robot.hardware_depthai import DAICameraType, DepthAI
 from real_robot_env.robot.hardware_franka import ControlType, FrankaArm
 from real_robot_env.robot.hardware_frankahand import FrankaHand
+from real_robot_env.robot.hardware_zed import ZED
 from real_robot_env.robot.utils.keyboard import KeyManager
 
 DELTA_T = 0.034
@@ -25,10 +27,11 @@ logger = logging.getLogger(__name__)
 class RealRobot(BaseSim):
     def __init__(self, device: str):
         super().__init__(seed=-1, device=device)
-
+        os.makedirs("camera_outputs/right_cam", exist_ok=True)
+        os.makedirs("camera_outputs/wrist_cam", exist_ok=True)
         self.p4 = FrankaArm(
             name="202_robot",
-            ip_address="141.3.53.63",
+            ip_address="10.10.10.11",
             port=50053,
             control_type=ControlType.HYBRID_JOINT_IMPEDANCE_CONTROL,
             hz=100,
@@ -36,7 +39,7 @@ class RealRobot(BaseSim):
         assert self.p4.connect(), f"Connection to {self.p4.name} failed"
 
         self.p4_hand = FrankaHand(
-            name="202_gripper", ip_address="141.3.53.63", port=50054
+            name="202_gripper", ip_address="10.10.10.11", port=50054
         )
         assert self.p4_hand.connect(), f"Connection to {self.p4_hand.name} failed"
 
@@ -46,7 +49,7 @@ class RealRobot(BaseSim):
 
         rgb = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
         rgb = einops.rearrange(rgb, "c h w -> 1 1 c h w").to(self.device)
-
+        rgb[:, :, [0, 1, 2], :, :] = rgb[:, :, [2, 1, 0], :, :]
         return rgb
 
     def test_agent(
@@ -56,21 +59,18 @@ class RealRobot(BaseSim):
         preprocessor: PolicyProcessorPipeline | None = None,
         postprocessor: PolicyProcessorPipeline | None = None,
     ):
-
-        self.cam0 = DepthAI(  # right cam
-            device_id="1844301051D9B50F00",
+        self.cam0 = ZED(  # right cam
+            device_id="33271979",
             name="right_cam",  # named orb due to other code dependencies
             height=256,  # 224,
             width=256,  # 224,
-            camera_type=DAICameraType.OAK_D,
         )
         #############Wrist camera
-        self.cam1 = DepthAI(  # wrist cam
-            device_id="1944301061BB782700",
+        self.cam1 = ZED(  # wrist cam
+            device_id="11450270",
             name="wrist_cam",  # named orb due to other code dependencies
             height=256,  # 224,
             width=256,  # 224,
-            camera_type=DAICameraType.OAK_D_SR,
         )
 
         env = RealRobotEnv(
@@ -118,23 +118,36 @@ class RealRobot(BaseSim):
                         "task": task_instruction,
                         "observation.state": robot_states,
                     }
-                    cv2.imwrite(f"debug_frame_{self.i}.jpg", obs["right_cam"]["rgb"])
+                    cv2.imwrite(
+                        f"camera_outputs/right_cam/debug_frame{self.i}.jpg",
+                        obs["right_cam"]["rgb"],
+                    )
+                    cv2.imwrite(
+                        f"camera_outputs/wrist_cam/debug_frame{self.i}.jpg",
+                        obs["wrist_cam"]["rgb"],
+                    )
+
                     if preprocessor:
                         obs_dict = preprocessor(obs_dict)
                     pred_action = agent.select_action(obs_dict).cpu().numpy()
                     if postprocessor:
                         pred_action = postprocessor(pred_action)
+
+                    pred_action = agent.select_action(obs_dict).cpu().numpy()
+                    # print(f"Predicted action: {pred_action}")
                     pred_joint_pos = pred_action[0, :7]
                     pred_gripper_command = pred_action[0, -1]
                     pred_gripper_command = 1 if pred_gripper_command > 0 else -1
-
+                    # print(
+                    #     f"Step {self.i}: Predicted joint pos: {pred_joint_pos}, gripper command: {pred_gripper_command}"
+                    # )
                     action = {
                         "robot_arm": pred_joint_pos,
                         "robot_hand": pred_gripper_command,
                     }
 
                     obs, *_ = env.step(action)
-
+                    self.i += 1
                     time.sleep(DELTA_T)
 
                 print()

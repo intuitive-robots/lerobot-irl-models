@@ -48,7 +48,7 @@ Use pyav as video backend, because there are problems with torchcodec on Horeka.
 ```bash
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/test/cu124
 
-pip install 'lerobot[all]'
+pip install 'lerobot[all]' timm torchdiffeq pyaudio moviepy
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -56,6 +56,9 @@ Make sure to also install the latest lerobot main version with xVLA specifically
 ```bash pip install git+https://github.com/huggingface/lerobot``` (i installed version lerobot version 0.4.3 with this)
 At a later point, it might be included into a release:
 ```bash pip install --upgrade lerobot[xvla] ```
+
+go to cd "/usr/local/zed/" and install python get_python_api.py
+
 3. Test if it works and install remaining dependencies
 
 
