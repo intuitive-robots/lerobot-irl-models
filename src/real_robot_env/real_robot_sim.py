@@ -6,6 +6,8 @@ import cv2
 import einops
 import numpy as np
 import torch
+from lerobot.policies.pretrained import PreTrainedPolicy
+from lerobot.processor.pipeline import PolicyProcessorPipeline
 
 from real_robot_env.base_sim import BaseSim
 from real_robot_env.real_robot_env import RealRobotEnv
@@ -47,20 +49,27 @@ class RealRobot(BaseSim):
 
         return rgb
 
-    def test_agent(self, agent):
+    def test_agent(
+        self,
+        agent: PreTrainedPolicy,
+        task_instruction: str,
+        preprocessor: PolicyProcessorPipeline | None = None,
+        postprocessor: PolicyProcessorPipeline | None = None,
+    ):
+
         self.cam0 = DepthAI(  # right cam
             device_id="1844301051D9B50F00",
             name="right_cam",  # named orb due to other code dependencies
-            height=224,
-            width=224,
+            height=256,  # 224,
+            width=256,  # 224,
             camera_type=DAICameraType.OAK_D,
         )
         #############Wrist camera
         self.cam1 = DepthAI(  # wrist cam
             device_id="1944301061BB782700",
             name="wrist_cam",  # named orb due to other code dependencies
-            height=224,
-            width=224,
+            height=256,  # 224,
+            width=256,  # 224,
             camera_type=DAICameraType.OAK_D_SR,
         )
 
@@ -106,11 +115,15 @@ class RealRobot(BaseSim):
                         # "front_cam_image": front_cam,
                         "observation.images.right_cam": right_cam,
                         "observation.images.wrist_cam": wrist_cam,
-                        "task": "pick_up_blue_cube",
+                        "task": task_instruction,
                         "observation.state": robot_states,
                     }
                     cv2.imwrite(f"debug_frame_{self.i}.jpg", obs["right_cam"]["rgb"])
+                    if preprocessor:
+                        obs_dict = preprocessor(obs_dict)
                     pred_action = agent.select_action(obs_dict).cpu().numpy()
+                    if postprocessor:
+                        pred_action = postprocessor(pred_action)
                     pred_joint_pos = pred_action[0, :7]
                     pred_gripper_command = pred_action[0, -1]
                     pred_gripper_command = 1 if pred_gripper_command > 0 else -1
