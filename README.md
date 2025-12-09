@@ -48,10 +48,11 @@ Use pyav as video backend, because there are problems with torchcodec on Horeka.
 ```bash
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/test/cu124
 
-pip install 'lerobot[all]'
+pip install 'lerobot[all]' timm torchdiffeq pyaudio moviepy
 pip install -r requirements.txt
 pip install -e .
 ```
+go to cd "/usr/local/zed/" and install python get_python_api.py
 
 3. Test if it works and install remaining dependencies
 
