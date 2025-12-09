@@ -5,7 +5,7 @@ import random
 
 # Set protobuf implementation to pure Python to avoid compatibility issues
 # between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+#os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import hydra
 import numpy as np
@@ -17,6 +17,7 @@ from tqdm import tqdm
 from src.policies.flower.flower_config import FlowerVLAConfig
 from src.policies.flower.modeling_flower import FlowerVLAPolicy
 from real_robot_env.real_robot_sim import RealRobot
+from lerobot.datasets.factory import IMAGENET_STATS
 
 log = logging.getLogger(__name__)
 
@@ -44,9 +45,11 @@ def instantiate_policy(dataset_stats: dict = None):
 
 
 @hydra.main(
-    config_path="../configs", config_name="config.yaml", version_base="1.3"
+    config_path="../configs", config_name="eval_config.yaml", version_base="1.3"
 )
 def main(cfg: DictConfig) -> None:
+    torch.cuda.empty_cache()
+    print("test")
     set_seed_everywhere(cfg.seed)
 
     wandb.config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
@@ -61,7 +64,7 @@ def main(cfg: DictConfig) -> None:
 
     dataset_stats = None
 
-    default_stats_path = cfg.stats_path#"/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
+    default_stats_path = cfg.stats_path #"/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
     if os.path.exists(default_stats_path):
         log.info(f"Loading dataset stats from default path: {default_stats_path}")
         import json
@@ -73,30 +76,40 @@ def main(cfg: DictConfig) -> None:
 
         dataset_stats = {}
         for key, value in stats_json.items():
-            if isinstance(value, dict) and "mean" in value and "std" in value:
-                try:
-                    dataset_stats[key] = {
-                        "mean": torch.tensor(value["mean"], dtype=torch.float32),
-                        "std": torch.tensor(value["std"], dtype=torch.float32),
-                        "min": torch.tensor(value["min"], dtype=torch.float32),
-                        "max": torch.tensor(value["max"], dtype=torch.float32),
-                    }
-                    log.info(
-                        f"  ✓ Loaded stats for '{key}' - mean shape: {dataset_stats[key]['mean'].shape}"
-                    )
-                except Exception as e:
-                    log.warning(f"  ✗ Failed to load stats for '{key}': {e}")
+            if key in ['observation.images.wrist_cam', 'observation.images.left_cam', 'observation.images.right_cam']:
+                dataset_stats[key] = {stats_type:  torch.tensor(stats, dtype=torch.float32)  for stats_type, stats in IMAGENET_STATS.items()}          
+                log.info(
+                    f"  ✓ Loaded stats for '{key}' - mean shape: {dataset_stats[key]['mean'].shape} from lerobot IMAGENET_STATS"
+                )
             else:
-                log.debug(f"  - Skipping '{key}' (no mean/std or not a dict)")
+                if isinstance(value, dict) and "mean" in value and "std" in value:
+                    try:
+                        dataset_stats[key] = {
+                            "mean": torch.tensor(value["mean"], dtype=torch.float32),
+                            "std": torch.tensor(value["std"], dtype=torch.float32),
+                            "min": torch.tensor(value["min"], dtype=torch.float32),
+                            "max": torch.tensor(value["max"], dtype=torch.float32),
+                        }
+                        log.info(
+                            f"  ✓ Loaded stats for '{key}' - mean shape: {dataset_stats[key]['mean'].shape}"
+                        )
+                    except Exception as e:
+                        log.warning(f"  ✗ Failed to load stats for '{key}': {e}")
+                else:
+                    log.debug(f"  - Skipping '{key}' (no mean/std or not a dict)")
 
         log.info(f"Final dataset_stats keys: {list(dataset_stats.keys())}")
     else:
         log.warning(
             f"No dataset stats provided and default path not found: {default_stats_path}"
         )
-
+    #TODO: we are not loading the correct training config for the flower agent,
+    # instead we always instantiate a new FlowerVLAConfig with default values.
+    # --> make sure to load the correct config used during training for evaluation!
     agent = instantiate_policy(dataset_stats=dataset_stats)
 
+    #TODO: the following code is redundant/ brittle: as we have our finetuned lerobot model,
+    #we can simply load using lerobot functionalities
     if hasattr(cfg, "checkpoint_path") and cfg.checkpoint_path:
         log.info(f"Loading pretrained model from {cfg.checkpoint_path}")
 
