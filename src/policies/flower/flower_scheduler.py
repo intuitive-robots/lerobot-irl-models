@@ -22,26 +22,26 @@ from pathlib import Path
 import draccus
 import numpy as np
 from lerobot.datasets.utils import write_json
-from lerobot.optim.optimizers import AdamWConfig
+from lerobot.optim.schedulers import LRSchedulerConfig
 from lerobot.utils.constants import SCHEDULER_STATE
 from lerobot.utils.io_utils import deserialize_json_into_object
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
+# NOTE: this was changed for eval, check if training still works (but not expected to be a problem)
+# @dataclass
+# class LRSchedulerConfig(draccus.ChoiceRegistry, abc.ABC):
+#     num_warmup_steps: int
 
-@dataclass
-class LRSchedulerConfig(draccus.ChoiceRegistry, abc.ABC):
-    num_warmup_steps: int
+#     @property
+#     def type(self) -> str:
+#         return self.get_choice_name(self.__class__)
 
-    @property
-    def type(self) -> str:
-        return self.get_choice_name(self.__class__)
-
-    @abc.abstractmethod
-    def build(
-        self, optimizer: Optimizer, num_training_steps: int
-    ) -> LRScheduler | None:
-        raise NotImplementedError
+#     @abc.abstractmethod
+#     def build(
+#         self, optimizer: Optimizer, num_training_steps: int
+#     ) -> LRScheduler | None:
+#         raise NotImplementedError
 
 
 @LRSchedulerConfig.register_subclass("cosine_decay_with_warmup_flower")

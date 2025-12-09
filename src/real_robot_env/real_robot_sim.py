@@ -49,6 +49,9 @@ class RealRobot(BaseSim):
 
         rgb = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
         rgb = einops.rearrange(rgb, "c h w -> 1 1 c h w").to(self.device)
+        # NOTE: in the next line we switch our input data from BGR to RGB because the setup
+        # returns BGR but our VLM backbones have been pre-trained on RGB and we therefore
+        # also fine-tune on RGB (switch image channels in lerobot conversion script too)
         rgb[:, :, [0, 1, 2], :, :] = rgb[:, :, [2, 1, 0], :, :]
         return rgb
 
@@ -129,9 +132,9 @@ class RealRobot(BaseSim):
 
                     if preprocessor:
                         obs_dict = preprocessor(obs_dict)
-                    
+
                     pred_action = agent.select_action(obs_dict)
-                    
+
                     if postprocessor:
                         pred_action = postprocessor(pred_action).cpu().numpy()
 

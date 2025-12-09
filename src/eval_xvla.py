@@ -2,11 +2,6 @@ import logging
 import multiprocessing as mp
 import os
 import random
-
-# Set protobuf implementation to pure Python to avoid compatibility issues
-# between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 from dataclasses import asdict
 from pathlib import Path
 from pprint import pformat
@@ -23,9 +18,13 @@ from lerobot.utils.random_utils import set_seed  # before: from lerobot.utilt.ut
 from lerobot.utils.utils import get_safe_torch_device, init_logging
 from omegaconf import DictConfig, OmegaConf
 
+from src.real_robot_env.real_robot_sim import RealRobot
 from src.real_robot_env.utils.sanity_check import sanity_check_eval
 
-from src.real_robot_env.real_robot_sim import RealRobot
+# Set protobuf implementation to pure Python to avoid compatibility issues
+# between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
+# os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 
 log = logging.getLogger(__name__)
 
@@ -62,9 +61,7 @@ def main(cfg: DictConfig) -> None:
 
     # TODO: fix the hardcoding of following values (e.g. root needs to be overwritten,
     # because the training config stores the datapath to the TMPDIR)
-    train_cfg.dataset.root = (
-        "/home/irl-admin/data_collection/lerobot/pepper_only"
-    )
+    train_cfg.dataset.root = "/home/irl-admin/data_collection/lerobot/pepper_only"
     if any(["empty_camera" in key for key in train_cfg.policy.input_features]):
         train_cfg.policy.input_features = {
             "observation.images.image": PolicyFeature(
@@ -158,7 +155,6 @@ def main(cfg: DictConfig) -> None:
     env_sim.test_agent(policy, task_instruction, preprocessor, postprocessor)
 
     log.info("Evaluation completed")
-    wandb.finish()
 
 
 if __name__ == "__main__":

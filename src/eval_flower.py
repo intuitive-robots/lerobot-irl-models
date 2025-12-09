@@ -1,23 +1,29 @@
 import logging
-import multiprocessing as mp
-import os
 import random
-
-# Set protobuf implementation to pure Python to avoid compatibility issues
-# between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
-#os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+from pathlib import Path
 
 import hydra
 import numpy as np
 import torch
-import wandb
+
+# from real_robot_env.real_robot_sim import RealRobot
+from lerobot.configs.train import TrainPipelineConfig
+from lerobot.datasets.factory import make_dataset
+from lerobot.policies import factory
+from lerobot.policies.factory import make_policy, make_pre_post_processors
+from lerobot.utils.utils import get_safe_torch_device
 from omegaconf import DictConfig, OmegaConf
-from tqdm import tqdm
 
 from src.policies.flower.flower_config import FlowerVLAConfig
+from src.policies.flower.flower_policymaker import make_flower_policy
 from src.policies.flower.modeling_flower import FlowerVLAPolicy
-from real_robot_env.real_robot_sim import RealRobot
-from lerobot.datasets.factory import IMAGENET_STATS
+from src.real_robot_env.utils.sanity_check import sanity_check_eval
+from src.train_flower import get_flower, my_make_pre_post_processors
+
+# Set protobuf implementation to pure Python to avoid compatibility issues
+# between polymetis (needs protobuf 3.x) and tensorflow-metadata (needs protobuf 4.x)
+# os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +38,7 @@ def set_seed_everywhere(seed):
         torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
+
 
 def instantiate_policy(dataset_stats: dict = None):
     """Instantiate policy from Hydra config."""
@@ -49,139 +56,94 @@ def instantiate_policy(dataset_stats: dict = None):
 )
 def main(cfg: DictConfig) -> None:
     torch.cuda.empty_cache()
-    print("test")
+    dataset_path = "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only_initial"  # "/hkfs/work/workspace/scratch/usmrd-MemVLA"
+    pretrained_path = "/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025-12-03/11-00-42/model_outputs/checkpoints/last/pretrained_model"  # "/home/irl-admin/model_weights/xvla_12_07/020000"
+    task_instruction = "Pick up the bell pepper and place it in the bowl."
     set_seed_everywhere(cfg.seed)
 
-    wandb.config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+    # Use the exact configuration from training
+    # TODO: if we want to read eval_config.yaml and overwrite the TrainPipelineConfig values,
+    # we need to parse the yaml into cli_args format and pass it to from_pretrained
+    train_cfg = TrainPipelineConfig.from_pretrained(
+        pretrained_name_or_path=pretrained_path
+    )  # , cli_args=cli_args)
+    train_cfg.policy.pretrained_path = Path(pretrained_path)
 
-    wandb.init(
-        project=cfg.wandb.project,
-        entity=cfg.wandb.entity,
-        group=cfg.get("group", "eval"),
-        mode=cfg.wandb.get("mode", "disabled"),
-        config=wandb.config,
+    # NOTE: root needs to be overwritten, because during training, the TMPDIR path is used.
+    train_cfg.dataset.root = (
+        dataset_path
+        # "/home/irl-admin/data_collection/lerobot/pepper_only"
+    )
+    train_cfg.dataset.image_transforms.enable = False  # no image transforms -> define this in yaml and overwrite directly using the cli_args
+    device = get_safe_torch_device(train_cfg.policy.device, log=True)
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+
+    # TODO: ingAvoid load entire dataset only to get metadata information
+    log.info(f"Loading Dataset from {train_cfg.dataset.root}")
+    dataset = make_dataset(train_cfg)
+
+    # Make Policy excactly as during training
+    log.info("Loading Policy...")
+    if isinstance(train_cfg.policy, FlowerVLAConfig):
+        # Need to call FLOWER specific policy maker and preprocessor
+        factory.make_policy = make_flower_policy  # monkey patch custom policy maker to pass pretrained non lerobot models
+        factory.make_pre_post_processors = my_make_pre_post_processors
+        factory.get_policy_class = get_flower
+
+    policy = make_policy(
+        cfg=train_cfg.policy,
+        env_cfg=None,
+        ds_meta=dataset.meta,
+        rename_map=train_cfg.rename_map,
+    )
+    policy.eval()
+    policy.to(device)
+
+    # Make pre and postprocessors excactly as during training
+    processor_kwargs = {}
+    postprocessor_kwargs = {}
+    if train_cfg.policy.pretrained_path is not None:
+        processor_kwargs["preprocessor_overrides"] = {
+            "device_processor": {"device": device.type},
+            "normalizer_processor": {
+                "stats": dataset.meta.stats,
+                "features": {
+                    **policy.config.input_features,
+                    **policy.config.output_features,
+                },
+                "norm_map": policy.config.normalization_mapping,
+            },
+        }
+        processor_kwargs["preprocessor_overrides"]["rename_observations_processor"] = {
+            "rename_map": train_cfg.rename_map
+        }
+        postprocessor_kwargs["postprocessor_overrides"] = {
+            "unnormalizer_processor": {
+                "stats": dataset.meta.stats,
+                "features": policy.config.output_features,
+                "norm_map": policy.config.normalization_mapping,
+            },
+        }
+
+    preprocessor, postprocessor = make_pre_post_processors(
+        policy_cfg=train_cfg.policy,
+        pretrained_path=train_cfg.policy.pretrained_path,
+        **processor_kwargs,
+        **postprocessor_kwargs,
     )
 
-    dataset_stats = None
-
-    default_stats_path = cfg.stats_path #"/home/multimodallearning/data_collected/flower-lerobot/trickandtreat/trickandtreat_lerobot/meta/stats.json"
-    if os.path.exists(default_stats_path):
-        log.info(f"Loading dataset stats from default path: {default_stats_path}")
-        import json
-
-        with open(default_stats_path, "r") as f:
-            stats_json = json.load(f)
-
-        log.info(f"Raw stats keys from JSON: {list(stats_json.keys())}")
-
-        dataset_stats = {}
-        for key, value in stats_json.items():
-            if key in ['observation.images.wrist_cam', 'observation.images.left_cam', 'observation.images.right_cam']:
-                dataset_stats[key] = {stats_type:  torch.tensor(stats, dtype=torch.float32)  for stats_type, stats in IMAGENET_STATS.items()}          
-                log.info(
-                    f"  ✓ Loaded stats for '{key}' - mean shape: {dataset_stats[key]['mean'].shape} from lerobot IMAGENET_STATS"
-                )
-            else:
-                if isinstance(value, dict) and "mean" in value and "std" in value:
-                    try:
-                        dataset_stats[key] = {
-                            "mean": torch.tensor(value["mean"], dtype=torch.float32),
-                            "std": torch.tensor(value["std"], dtype=torch.float32),
-                            "min": torch.tensor(value["min"], dtype=torch.float32),
-                            "max": torch.tensor(value["max"], dtype=torch.float32),
-                        }
-                        log.info(
-                            f"  ✓ Loaded stats for '{key}' - mean shape: {dataset_stats[key]['mean'].shape}"
-                        )
-                    except Exception as e:
-                        log.warning(f"  ✗ Failed to load stats for '{key}': {e}")
-                else:
-                    log.debug(f"  - Skipping '{key}' (no mean/std or not a dict)")
-
-        log.info(f"Final dataset_stats keys: {list(dataset_stats.keys())}")
-    else:
-        log.warning(
-            f"No dataset stats provided and default path not found: {default_stats_path}"
-        )
-    #TODO: we are not loading the correct training config for the flower agent,
-    # instead we always instantiate a new FlowerVLAConfig with default values.
-    # --> make sure to load the correct config used during training for evaluation!
-    agent = instantiate_policy(dataset_stats=dataset_stats)
-
-    #TODO: the following code is redundant/ brittle: as we have our finetuned lerobot model,
-    #we can simply load using lerobot functionalities
-    if hasattr(cfg, "checkpoint_path") and cfg.checkpoint_path:
-        log.info(f"Loading pretrained model from {cfg.checkpoint_path}")
-
-        if cfg.checkpoint_path.endswith(".safetensors"):
-            from safetensors.torch import load_file
-
-            state_dict = load_file(cfg.checkpoint_path, device=str(cfg.device))
-        else:
-            checkpoint = torch.load(
-                cfg.checkpoint_path, map_location=cfg.device, weights_only=False
-            )
-
-            if isinstance(checkpoint, dict):
-                if "model" in checkpoint:
-                    state_dict = checkpoint["model"]
-                elif "state_dict" in checkpoint:
-                    state_dict = checkpoint["state_dict"]
-                else:
-                    state_dict = checkpoint
-            else:
-                state_dict = checkpoint
-
-        new_state_dict = {}
-        for key, value in state_dict.items():
-            new_key = key
-            if key.startswith("agent."):
-                new_key = "model." + key[6:]
-            elif key.startswith("policy."):
-                new_key = "model." + key[7:]
-            elif not key.startswith("model."):
-                new_key = "model." + key
-
-            new_key = new_key.replace(".mlp.c_fc1.", ".mlp.fc1.")
-            new_key = new_key.replace(".mlp.c_fc2.", ".mlp.fc2.")
-            new_key = new_key.replace(".mlp.c_proj.", ".mlp.proj.")
-
-            new_state_dict[new_key] = value
-
-        log.info(f"Preprocessed {len(new_state_dict)} keys from checkpoint")
-
-        missing_keys, unexpected_keys = agent.load_state_dict(
-            new_state_dict, strict=False
-        )
-
-        if missing_keys:
-            log.warning(f"Missing keys in checkpoint ({len(missing_keys)} total):")
-            log.warning(f"  First few: {missing_keys[:5]}")
-            log.warning("  → These parameters will use random initialization!")
-
-        if unexpected_keys:
-            log.warning(
-                f"Unexpected keys in checkpoint ({len(unexpected_keys)} total):"
-            )
-            log.warning(f"  First few: {unexpected_keys[:5]}")
-            log.warning("  → These parameters from checkpoint will be ignored!")
-
-        if not missing_keys and not unexpected_keys:
-            log.info("✅ All parameters loaded successfully!")
-        else:
-            log.info("⚠️  Model loaded with warnings (see above)")
-
-    agent = agent.to(cfg.device)
-    agent.eval()
     log.info("Initializing RealRobot environment...")
 
-    env_sim = RealRobot(device=cfg.device)
+    # env_sim = RealRobot(device=cfg.device)
 
     log.info("Starting evaluation on real robot...")
-    env_sim.test_agent(agent)
+    sanity_check_eval(
+        policy, preprocessor, postprocessor, dataset
+    )  # use this to run sanity check on eval
+    # env_sim.test_agent(policy, task_instruction, preprocessor, postprocessor)
 
     log.info("Evaluation completed")
-    wandb.finish()
 
 
 if __name__ == "__main__":
