@@ -1,10 +1,17 @@
 seed: 42
 device: cuda
 repo_id: pepper_only
-checkpoint_path: /home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025-12-02/20-37-39/model_outputs/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025-12-02/02-20-53/model_outputs/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025_12_01__00_50_57/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
 stats_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only/meta/stats.json
+checkpoint_path: /home/irl-admin/model_weights/2025_12_03/finetuned_40k/pretrained_model/model.safetensors  
+#checkpoint_path: /home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025-12-02/20-37-39/model_outputs/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025-12-02/02-20-53/model_outputs/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/train/flower/2025_12_01__00_50_57/checkpoints/last/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
+#/home/irl-admin/model_weights/2025_12_03/from_scratch_100k/pretrained_model/model.safetensors  
+# /home/irl-admin/model_weights/2025_12_03/finetuned_40k/pretrained_model/model.safetensors  
+#/home/irl-admin/model_weights/2025_12_01__00_50_57/checkpoints/last/pretrained_model/model.safetensors 
+#/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
 dataset_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only
 wandb:
   project: "lerobot-pi0-eval"
   entity: "your_wandb_entity"
   mode: "disabled"
+
+#checkpoint_path: /home/irl-admin/model_weights/2025_12_02/latest/pretrained_model/model.safetensors #/home/hk-project-p0024638/usmrd/projects/lerobot-irl-models/output/flower/2025-11-29/23-39-05/checkpoints/001000/pretrained_model/model.safetensors # Path to your checkpoint file or directory
