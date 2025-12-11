@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -p accelerated #accelerated
-#SBATCH --mem=64G        # Total CPU RAM
-#SBATCH --gres=gpu:4     # 4 GPUs
-#SBATCH --time=07:30:00
-#SBATCH -J train_multi_gpu
-#SBATCH -o logs/train_multi_gpu/%x_%j.out
-#SBATCH -e logs/train_multi_gpu/%x_%j.err
+#SBATCH -p dev_accelerated
+#SBATCH --gres=gpu:2 #1
+#SBATCH --mem=32 #16G
+#SBATCH --time=00:10:00  #40.000 steps should take ~6:45h
+#SBATCH -J debug_flower
+#SBATCH -o logs/debug/%x_%j.out
+#SBATCH -e logs/debug/%x_%j.err
 
 # ==============================================================================
 # ENVIRONMENT SETUP
@@ -34,22 +34,7 @@ echo "Number of GPUs detected: $NUM_GPUS"
 echo "Batch size per GPU: $BATCH_PER_GPU"
 echo "Launching on GPUs: $SLURM_JOB_GPUS"
 
-# ==============================================================================
-# DATA HANDLING: Extract Data to Local Scratch ($TMPDIR)
-# ==============================================================================
-# Reduce IO-Activity, see:  https://www.nhr.kit.edu/userdocs/horeka/filesystems/#tmpdir
-DATASET_ID="pepper_only" #make sure this aligns with yaml config, right now its easiest to hardcode it here and in yaml file
-PATH_TO_COMPRESSED_DATA="/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/compressed_datasets/${DATASET_ID}.tar.gz"
-
-# Check if $TMPDIR is available (cluster-specific check)
-if [ -z "$TMPDIR" ]; then
-    echo "ERROR: \$TMPDIR is not defined. Are you running on the cluster?"
-    exit 1
-fi
-
-# Extract the data directly to $TMPDIR
-tar -xf "$PATH_TO_COMPRESSED_DATA" -C "$TMPDIR"
-echo "Succesfully extracted $PATH_TO_COMPRESSED_DATA to $TMPDIR/$DATASET_ID, setting this as datapath"
+# NOTE: $TMPDIR usage not implemented for debug script, avoid long trainings with many IO calls
 
 # ==============================================================================
 # EXECUTE TRAINING (Conditional Launch)
@@ -61,16 +46,17 @@ if [ "$NUM_GPUS" -gt 1 ]; then
         --num_processes=$NUM_GPUS \
         --main_process_port $MASTER_PORT \
         src/train_flower.py \
-        dataset_path=$TMPDIR/$DATASET_ID \
-        train.batch_size=$BATCH_PER_GPU
+        wandb.enable=false \
+        train.batch_size=$BATCH_PER_GPU \
+        repo_id=test \
+        dataset_path=/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/test \
+        train.steps=1000 \
+        train.save_freq=1000 \
+        model.freeze_florence=false \
+        model.freeze_vision_tower=false
 else
     # Single-GPU (or CPU) training using standard python call
     python src/train_flower.py \
         dataset_path=$TMPDIR/$DATASET_ID \
         train.batch_size=$BATCH_PER_GPU
 fi
-
-
-# To overwrite the arguments in the hydra yaml, e.g. for training from scratch or
-# loading a specific checkpoint, we can set train.checkpoint_path = null or
-# train.checkpoint_path=<path_to_checkpoint>

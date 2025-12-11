@@ -4,8 +4,8 @@
 ## Flower Model
 ### For Training Flower model:
 
-1. Create conda env as described here: 
-2. Change in the config file your settings and train.sh 
+1. Create conda env as described here:
+2. Change in the config file your settings and train.sh
 3. Run the training script: sbatch train.sh
 
 ### For evaluation:
@@ -17,18 +17,18 @@
 
 
 ## Pi0/0.5 Model
-### For Training Pi0 model: 
+### For Training Pi0 model:
 1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/pi0
-2. Change in the config file your settings and train.sh 
+2. Change in the config file your settings and train.sh
 3. Run the training script: sbatch train.sh
 
 ### For evaluation:
 
 
 ## groot Model
-### For Training groot model: 
-1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/groot + pip install hydra-core 
-2. Change in the config file your settings and train.sh 
+### For Training groot model:
+1. Create conda env as described here: https://huggingface.co/docs/lerobot/en/groot + pip install hydra-core
+2. Change in the config file your settings and train.sh
 3. Run the training script: sbatch train.sh
 
 ### For evaluation:
@@ -48,9 +48,11 @@ Use pyav as video backend, because there are problems with torchcodec on Horeka.
 ```bash
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/test/cu124
 
-pip install 'lerobot[all]'
+pip install 'lerobot[all]' timm torchdiffeq pyaudio moviepy
 pip install -r requirements.txt
+pip install -e .
 ```
+go to cd "/usr/local/zed/" and install python get_python_api.py
 
 3. Test if it works and install remaining dependencies
 
