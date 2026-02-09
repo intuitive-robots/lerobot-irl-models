@@ -1,16 +1,16 @@
-repo_id: "your data id"
-dataset_path: "your dataset path"
-checkpoint_path: /hkfs/work/workspace/scratch/uhtfz-flower/360000_model_weight.pt
+repo_id: pepper_only
+dataset_path: /hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only
+checkpoint_path: /home/hk-project-p0024638/usmrd/model_weights/flower_pret/360000_model_weights.pt
 
 train:
-  batch_size: 2
-  steps: 40000
-  save_freq: 100
+  batch_size: 64 #64
+  steps: 40000 #40000
+  save_freq: 5000
   seed: 42
   device: cuda
   num_workers: 4
   log_freq: 100
-  output_dir: "./output/pi0.5/"
+  output_dir: "./output/flower/"
   job_name: "model_training"
   push_to_hub: false
   #Only pi0/pi05

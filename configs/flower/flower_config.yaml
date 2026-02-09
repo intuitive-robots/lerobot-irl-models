@@ -1,0 +1,37 @@
+# conf/config.yaml
+defaults:
+- model: flower
+- _self_
+
+
+# Top-level metadata + short-cuts
+base_output_dir: ./output/train/flower/${now:%Y-%m-%d}/${now:%H-%M-%S}
+repo_id: "pepper_only"
+dataset_path: "/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/multi_task_11" #"/hkfs/work/workspace/scratch/usmrd-MemVLA/datasets/lerobot/pepper_only"
+checkpoint_path: ${train.checkpoint_path}
+
+hydra:
+  run:
+    dir: ${base_output_dir}/hydra
+
+wandb:
+  enable: true
+  project: "lerobot-training"
+  entity: "usmrd"
+  mode: "online"   # options: online, offline, disabled
+
+train:
+  resume: false
+  checkpoint_path: "/home/hk-project-p0024638/usmrd/model_weights/flower_pret/360000_model_weights.pt"
+  batch_size: 64 #40000
+  steps: 60000 #100000
+  save_freq: 20000
+  seed: 42
+  device: cuda #not sure if neeeded
+  num_workers: 4
+  log_freq: 100
+  output_dir: ${base_output_dir}/model_outputs
+  job_name: "model_training_${now:%Y-%m-%d}_${now:%H-%M-%S}"
+  push_to_hub: false
+  gradient_checkpointing: true
+  compile_model: false

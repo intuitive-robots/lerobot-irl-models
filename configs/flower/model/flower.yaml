@@ -1,0 +1,123 @@
+# # conf/model/flower.yaml
+
+_target_: src.policies.flower.flower_config.FlowerVLAConfig
+# Modalities (not used currently)
+device: "cpu" #make sure to load to cpu first, TODO: check if this is really needed
+
+obs_modalities: "observation"
+goal_modalities: "task"
+target_modality: "action"
+lang_modalities: ["language_instruction"]
+img_modalities: ["image_primary"]
+
+# Input / Output features DONOT HANDLE THESE IN THE YAML
+# Probably should use FeatureType but removing PolicyFeature
+# and instead directly defining the dict should be fine
+# input_features:
+#   observation.images.right_cam:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.VISUAL}
+#     shape: [3, 224, 224]
+#   observation.images.left_cam:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.VISUAL}
+#     shape: [3, 224, 224]
+#   observation.images.wrist_cam:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.VISUAL}
+#     shape: [3, 224, 224]
+#   observation.state:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.STATE}
+#     shape: [7]
+#   task:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.LANGUAGE}
+#     shape: [1]
+
+# output_features:
+#   action:
+#     _target_: lerobot.configs.types.PolicyFeature
+#     type: ${python:lerobot.configs.types.FeatureType.ACTION}
+#     shape: [8]
+
+# Normalization mapping (FeatureType -> NormalizationMode)
+# normalization_mapping:
+#   STATE: ${python:lerobot.configs.types.NormalizationMode.MEAN_STD}
+#   ACTION: ${python:lerobot.configs.types.NormalizationMode.MEAN_STD}
+
+
+# VLM configuration
+vlm_path: "microsoft/Florence-2-large"
+freeze_florence: false
+freeze_vision_tower: false
+freeze_embeddings_only: true
+vlm_prompt_style: "default"
+token_dropout: 0.1
+cfg_dropout: 0.0
+cfg_lambda: 1.0
+
+
+# Action and observation configuration
+action_dim: 8
+act_window_size: 30 #16
+multistep: 16
+num_sampling_steps: 10
+sampling_type: "uniform"
+lowdim_obs_dim: 16
+use_proprio: true #false
+
+
+# Image configuration
+first_view_key: "observation.images.right_cam"
+use_second_view: true
+second_view_key: "observation.images.wrist_cam" #"image_secondary"
+
+
+# DiT architecture
+dit_dim: 1024
+n_heads: 16
+n_layers: 12
+attn_pdrop: 0.1
+resid_pdrop: 0.1
+mlp_pdrop: 0.1
+
+
+# Attention configuration
+use_cross_attn: true
+use_causal_attention: true
+use_adaln_cond: false
+action_type_adaln: true
+use_readout_token: false
+
+
+# Positional encoding
+use_rope: true
+use_nope: false
+query_seq_len: 100
+rope_theta: 1000.0
+
+
+# Action output configuration
+return_act_chunk: false
+use_action_scale: false
+use_early_cross_fusion: true
+
+scheduler:
+  _target_: src.policies.flower.flower_scheduler.CosineDecayWithWarmupSchedulerFLOWERConfig
+  num_warmup_steps: 1500 #2500 #1000
+  num_plateau_steps: 20000 #35000 #15000
+  num_decay_steps: 60000 #100000 #40000
+  peak_lr: 2e-5
+  decay_lr: 1e-5
+
+optimizer:
+  _target_: lerobot.optim.optimizers.AdamWConfig
+  lr: 2e-5
+  betas: [0.9, 0.95]
+  eps: 1e-8
+  weight_decay: 0.01
+
+# Additional user-facing fields you may want to pass-through
+# (these are not complex objects here; the training code is expected to
+# convert these YAML entries into the appropriate dataclass / config objects)
